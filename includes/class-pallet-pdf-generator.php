@@ -209,6 +209,8 @@ private function generate_dompdf($html, $pdf_filepath) {
         }
     }
     
+// in class-pallet-pdf-generator.php
+
 private function generate_invoice_html($pallet_data, $total_amount, $monthly_price, $months_due, $billing_result = null) {
     // Get settings from main database (using the global $wpdb context from the original file)
     global $wpdb;
@@ -312,9 +314,10 @@ private function generate_invoice_html($pallet_data, $total_amount, $monthly_pri
     
     <div class="section-title">Bill To</div>
     <div class="customer-info">
-        <div class="customer-name">' . esc_html($pallet_data['primary_contact_name'] ?: 'N/A') . '</div>
-        <div>Phone: ' . esc_html($pallet_data['primary_contact_phone'] ?: 'N/A') . '</div>
-        <div>Email: ' .  esc_html($pallet_data['primary_contact_email'] ?: 'N/A') . '</div>
+        <div class="customer-name">' . esc_html($pallet_data['full_name'] ?? 'N/A') . '</div>
+        <div style="margin-bottom: 5px;">' . nl2br(esc_html($pallet_data['full_address'] ?? '')) . '</div>
+        <div>Phone: ' . esc_html($pallet_data['phone'] ?? 'N/A') . '</div>
+        <div>Email: ' .  esc_html($pallet_data['email'] ?? 'N/A') . '</div>
     </div>
     
     <div class="pallet-details-bar bg-accent">
@@ -369,8 +372,7 @@ private function generate_invoice_html($pallet_data, $total_amount, $monthly_pri
     </div>';
     
     return $html;
-}    
-
+}
     private function get_pallet_dimensions($pallet_type) {
         if ($pallet_type === 'US') {
             return '1.22m × 1.02m';

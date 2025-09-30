@@ -370,41 +370,42 @@ $('#customer-creation-form').on('submit', function(e) {
     }
     
     
-    function saveNewCustomer() {
-    const formData = $('#customer-creation-form').serialize();
-    const $saveBtn = $('#save-new-customer-btn');
-    const originalText = $saveBtn.html();
-    $saveBtn.html('<span class="dashicons dashicons-update spin"></span> Saving...').prop('disabled', true);
+function saveNewCustomer() {
+    const customerData = {
+        id: '', // New customer
+        full_name: $('#frontend-new-customer-name').val(),
+        email: $('#frontend-new-customer-email').val(),
+        phone: $('#frontend-new-customer-phone').val(),
+        whatsapp: $('#frontend-new-customer-whatsapp').val(),
+        full_address: $('#frontend-new-customer-address').val(),
+        upload_id: $('#frontend-new-customer-id-upload').val(),
+        utility_bill: $('#frontend-new-customer-bill-upload').val()
+    };
 
     $.ajax({
-        url: sum_ajax.ajax_url,
+        url: sum_pallet_frontend_ajax.ajax_url,
         type: 'POST',
-        data: formData + '&action=sum_save_customer&nonce=' + sum_ajax.nonce,
+        data: {
+            action: 'sum_save_customer_frontend',
+            nonce: sum_pallet_frontend_ajax.nonce,
+            customer_data: customerData
+        },
         success: function(response) {
             if (response.success) {
-                closeCustomerModal();
-                showSuccess('Customer created: ' + response.data.customer.full_name);
-                
-                // 1. Add the new option to the select dropdown
-                const newOption = `<option value="${response.data.customer_id}" data-email="${response.data.customer.email}">${response.data.customer.full_name} (ID: ${response.data.customer_id} | ${response.data.customer.email})</option>`;
-                $('#customer-id').append(newOption);
-
-                // 2. Select the newly created customer
-                $('#customer-id').val(response.data.customer_id).trigger('change');
-                
+                customerModal.hide();
+                $('#frontend-customer-creation-form')[0].reset();
+                showSuccess('Customer created!');
+                // Reload the customer list and select the new one
+                loadCustomersForSelect(response.data.customer_id);
             } else {
-                showError('Failed to create customer: ' + response.data);
+                showError(response.data.message || 'Could not save customer.');
             }
         },
         error: function() {
-            showError('Failed to create customer via AJAX.');
-        },
-        complete: function() {
-            $saveBtn.html(originalText).prop('disabled', false);
+            showError('An error occurred while saving the customer.');
         }
     });
-}
-    
+}    
     function savePallet() {
         const formData = $('#pallet-form').serialize();
         

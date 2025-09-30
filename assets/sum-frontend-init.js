@@ -187,15 +187,15 @@ function renderUnitCard(unit) {
                     <div class="sum-frontend-contact-details">
                         <div class="sum-frontend-contact-item">
                             <span class="sum-frontend-contact-label">Name:</span>
-                            <span class="sum-frontend-contact-value">${unit.primary_contact_name}</span>
+                            <span class="sum-frontend-contact-value">${unit.customer_name}</span>
                         </div>
                         <div class="sum-frontend-contact-item">
                             <span class="sum-frontend-contact-label">Email:</span>
-                            <span class="sum-frontend-contact-value">${unit.primary_contact_email || 'N/A'}</span>
+                            <span class="sum-frontend-contact-value">${unit.customer_email || 'N/A'}</span>
                         </div>
                         <div class="sum-frontend-contact-item">
                             <span class="sum-frontend-contact-label">Phone:</span>
-                            <span class="sum-frontend-contact-value">${unit.primary_contact_phone || 'N/A'}</span>
+                            <span class="sum-frontend-contact-value">${unit.customer_phone || 'N/A'}</span>
                         </div>
                         ${unit.period_from && unit.period_until ? `
                             <div class="sum-frontend-contact-item">

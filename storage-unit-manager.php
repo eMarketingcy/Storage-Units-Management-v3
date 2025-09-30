@@ -263,6 +263,8 @@ require_once SUM_PLUGIN_PATH . 'includes/class-pallet-database.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-pallet-ajax-handlers.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-pallet-email-handler.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php'; 
+require_once SUM_PLUGIN_PATH . 'includes/class-customer-pdf-generator.php';
+require_once SUM_PLUGIN_PATH . 'includes/class-customer-email-handler.php';
 
 // === PDF libs paths ===
 // Where Dompdf will live: wp-content/plugins/storage-unit-manager/lib/dompdf/
@@ -344,52 +346,56 @@ class StorageUnitManager {
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
     }
     
-    public function init() {
-        // Initialize components
-        // 1. Initialize DBs first (Dependencies for Handlers)
-        $this->database = new SUM_Database();
-        $this->customer_database = new SUM_Customer_Database(); // <-- NEW CUSTOMER DB
-        $this->pallet_database = new SUM_Pallet_Database();
-        
-        // 2. Initialize Handlers with correct dependencies
-        // NOTE: We only instantiate SUM_Ajax_Handlers ONCE with both dependencies.
-        $this->ajax_handlers = new SUM_Ajax_Handlers($this->database, $this->customer_database); // <-- CORRECT, SINGLE INSTANTIATION
-        $this->payment_handler = new SUM_Payment_Handler($this->database);
-        $this->email_handler = new SUM_Email_Handler($this->database);
-        $this->pallet_ajax_handlers = new SUM_Pallet_Ajax_Handlers($this->pallet_database);
-        $this->pallet_email_handler = new SUM_Pallet_Email_Handler($this->pallet_database);
-        
-        // Create database tables
-        $this->database->create_tables();
-        $this->pallet_database->create_tables();
-        
-        // Add admin menu
-        add_action('admin_menu', array($this, 'add_admin_menu'));
-        
-        // Enqueue scripts and styles
-        add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
-        add_action('wp_enqueue_scripts', array($this, 'frontend_enqueue_scripts'));
-        
-        // Initialize AJAX handlers
-        $this->ajax_handlers->init();
-        $this->pallet_ajax_handlers->init();
-        
-        // Initialize payment handlers
-        $this->payment_handler->init();
-        
-        // Initialize email handlers
-        $this->email_handler->init();
-        $this->pallet_email_handler->init();
-        
-        // Shortcodes
-        add_shortcode('storage_units_frontend', array($this, 'frontend_shortcode'));
-        add_shortcode('storage_pallets_frontend', array($this, 'pallet_frontend_shortcode'));
-        add_shortcode('storage_pallets_frontend', array($this, 'pallet_frontend_shortcode'));
-        
-        // Create user role
-        $this->create_storage_manager_role();
-    }
+public function init() {
     
+    // 1. Initialize DBs first, as they are dependencies for other classes.
+    $this->database = new SUM_Database();
+    $this->pallet_database = new SUM_Pallet_Database();
+    $this->customer_database = new SUM_Customer_Database();
+
+    // 2. Initialize the handlers and pass the database objects they need.
+    $this->ajax_handlers = new SUM_Ajax_Handlers($this->database, $this->customer_database);
+    $this->pallet_ajax_handlers = new SUM_Pallet_Ajax_Handlers($this->pallet_database, $this->customer_database); // <-- This now correctly receives the customer_database
+    
+    // 3. Initialize the remaining handlers.
+    $this->payment_handler = new SUM_Payment_Handler($this->database);
+    $this->email_handler = new SUM_Email_Handler($this->database);
+    $this->pallet_email_handler = new SUM_Pallet_Email_Handler($this->pallet_database);
+    $this->customer_pdf_generator = new SUM_Customer_PDF_Generator($this->customer_database);
+    $this->customer_email_handler = new SUM_Customer_Email_Handler($this->customer_database);
+    
+    // 4. Register the AJAX actions from the now-initialized handlers.
+    $this->ajax_handlers->init();
+    $this->pallet_ajax_handlers->init();
+    $this->create_customer_frontend_page();
+    
+    // 5. Initialize payment and email hooks.
+    $this->payment_handler->init();
+    $this->email_handler->init();
+    $this->pallet_email_handler->init();
+
+    // Create database tables on init.
+    $this->database->create_tables();
+    $this->pallet_database->create_tables();
+    
+    // Add admin menu.
+    add_action('admin_menu', array($this, 'add_admin_menu'));
+    
+    // Enqueue scripts and styles.
+    add_action('admin_enqueue_scripts', array($this, 'admin_enqueue_scripts'));
+    add_action('wp_enqueue_scripts', array($this, 'frontend_enqueue_scripts'));
+    add_action('wp_ajax_sum_send_customer_invoice_frontend', array($this, 'ajax_send_customer_invoice'));
+    add_action('wp_ajax_sum_generate_customer_invoice_pdf', array($this, 'ajax_generate_customer_pdf'));
+    
+    // Register Shortcodes.
+    add_shortcode('storage_units_frontend', array($this, 'frontend_shortcode'));
+    add_shortcode('storage_pallets_frontend', array($this, 'pallet_frontend_shortcode'));
+    add_shortcode('storage_customers_frontend', array($this, 'customer_frontend_shortcode'));
+    
+    // Create user role.
+    $this->create_storage_manager_role();
+}
+
     public function activate() {
         $this->database = new SUM_Database();
         $this->database->create_tables();
@@ -527,6 +533,24 @@ class StorageUnitManager {
         }
     }
     
+    public function customer_frontend_shortcode($atts) {
+    ob_start();
+    include SUM_PLUGIN_PATH . 'templates/customer-frontend-page.php';
+    return ob_get_clean();
+}
+
+// Add a new page creation method:
+public function create_customer_frontend_page() {
+    if (get_page_by_path('storage-customers')) return;
+    wp_insert_post([
+        'post_title' => 'Storage Customers',
+        'post_content' => '[storage_customers_frontend]',
+        'post_status' => 'publish',
+        'post_type' => 'page',
+        'post_name' => 'storage-customers'
+    ]);
+}
+    
 public function frontend_enqueue_scripts() {
     // Check if we are on a page, and get its content
     if (!is_page() || !get_post()) {
@@ -576,6 +600,16 @@ public function frontend_enqueue_scripts() {
         // We don't need the general 'sum-frontend-js' but the payment logic script (which might be the same file or inline in the template).
         // Since the current JS is inline in the template, we only need the CSS and Stripe JS.
     }
+    
+    if (has_shortcode($post_content, 'storage_customers_frontend')) {
+    wp_enqueue_style('sum-customer-frontend-css', SUM_PLUGIN_URL . 'assets/customer-frontend.css', array(), SUM_VERSION);
+    wp_enqueue_script('sum-customer-frontend-js', SUM_PLUGIN_URL . 'assets/customer-frontend.js', array('jquery'), SUM_VERSION, true);
+
+    wp_localize_script('sum-customer-frontend-js', 'sum_customer_frontend_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('sum_frontend_nonce')
+    ));
+}
 }    
     public function admin_page() {
         $customer_database = $this->customer_database; 
@@ -681,7 +715,39 @@ public function frontend_enqueue_scripts() {
         // Include the customer admin template
         include SUM_PLUGIN_PATH . 'modules/customers/templates/customers-page.php';
     }
+    
+    public function ajax_send_customer_invoice() {
+    check_ajax_referer('sum_frontend_nonce', 'nonce');
+    $customer_id = isset($_POST['customer_id']) ? absint($_POST['customer_id']) : 0;
+    if ($customer_id > 0 && $this->customer_email_handler->send_full_invoice($customer_id)) {
+        wp_send_json_success('Invoice sent successfully.');
+    } else {
+        wp_send_json_error(['message' => 'Failed to send invoice.']);
+    }
 }
+
+public function ajax_generate_customer_pdf() {
+    check_ajax_referer('sum_frontend_nonce', 'nonce');
+    $customer_id = isset($_GET['customer_id']) ? absint($_GET['customer_id']) : 0;
+    if ($customer_id > 0) {
+        $pdf_path = $this->customer_pdf_generator->generate_invoice($customer_id);
+        if ($pdf_path && file_exists($pdf_path)) {
+            header('Content-Type: application/pdf');
+            
+            // --- FIX: Change "attachment" to "inline" to open in browser ---
+            header('Content-Disposition: inline; filename="' . basename($pdf_path) . '"');
+            
+            header('Content-Length: ' . filesize($pdf_path));
+            readfile($pdf_path);
+            @unlink($pdf_path);
+            exit;
+        }
+    }
+    wp_die('Could not generate PDF. The customer may not have any active rentals.');
+}
+    
+}
+
 
 // Initialize the plugin
 new StorageUnitManager();

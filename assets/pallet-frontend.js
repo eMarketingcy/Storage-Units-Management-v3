@@ -2,8 +2,12 @@ jQuery(document).ready(function($) {
     let pallets = [];
     let editingPallet = null;
     
+    // --- New Customer Modal Elements ---
+    const customerModal = $('#frontend-customer-creation-modal');
+
     // Initialize
     loadPallets();
+    loadCustomersForSelect(); // Load customers on page start
     
     // Event listeners
     $('#frontend-add-pallet-btn, #frontend-add-first-pallet-btn').on('click', function() {
@@ -14,8 +18,10 @@ jQuery(document).ready(function($) {
         closeModal();
     });
     
-    $('.sum-pallet-modal-overlay').on('click', function() {
-        closeModal();
+    $('.sum-pallet-modal-overlay').on('click', function(e) {
+        if ($(e.target).is('.sum-pallet-modal-overlay')) {
+             closeModal();
+        }
     });
     
     $('#frontend-pallet-form').on('submit', function(e) {
@@ -31,12 +37,24 @@ jQuery(document).ready(function($) {
         filterPallets();
     });
     
-    // Generate pallet name when customer name changes
-    $('#frontend-primary-name').on('blur', function() {
-        const customerName = $(this).val();
-        if (customerName && !$('#frontend-pallet-name').val()) {
-            generatePalletName(customerName);
+    // --- REVISED event listener for pallet name generation ---
+    $('#frontend-pallet-customer-id').on('change', function() {
+        const palletId = $('#frontend-pallet-id').val();
+        const selectedCustomerName = $(this).find('option:selected').text();
+
+        // Only generate for new pallets when a valid customer is chosen
+        if (palletId === '' && $(this).val() !== '') {
+            generatePalletName(selectedCustomerName);
         }
+    });
+
+    // --- New Event Handlers for Customer Modal ---
+    $('#frontend-pallet-add-customer-btn').on('click', () => customerModal.show());
+    $('#frontend-customer-modal-close-btn').on('click', () => customerModal.hide());
+    
+    $('#frontend-customer-creation-form').on('submit', function(e) {
+        e.preventDefault();
+        saveNewCustomer();
     });
     
     // Toggle secondary contact
@@ -120,153 +138,165 @@ jQuery(document).ready(function($) {
         });
     }
     
-    function renderPalletCard(pallet) {
-        const monthlyPrice = pallet.monthly_price ? `€${parseFloat(pallet.monthly_price).toFixed(2)}/month` : '';
+/**
+ * Calculates the number of occupied months between two dates.
+ * Any part of a month is counted as one occupied month.
+ * e.g., Sept 29 to Oct 01 is 2 months (September and October).
+ */
+function calculateOccupiedMonths(startDateStr, endDateStr) {
+    if (!startDateStr || !endDateStr) {
+        return 0;
+    }
+    
+    try {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
         
-        // Payment status badge
-        let paymentBadge = '';
-        const paymentStatus = pallet.payment_status || 'paid';
-        const badgeClass = paymentStatus === 'paid' ? 'sum-pallet-badge-paid' : 
-                          paymentStatus === 'overdue' ? 'sum-pallet-badge-overdue' : 'sum-pallet-badge-unpaid';
-        const badgeIcon = paymentStatus === 'paid' ? '✅' : paymentStatus === 'overdue' ? '⚠️' : '⏳';
-        paymentBadge = `<span class="sum-pallet-badge ${badgeClass}">${badgeIcon} ${paymentStatus}</span>`;
-        
-        // Check if past due
-        let pastDueBadge = '';
-        if (pallet.period_until) {
-            const today = new Date();
-            const endDate = new Date(pallet.period_until);
-            if (endDate < today) {
-                pastDueBadge = '<span class="sum-pallet-badge sum-pallet-badge-past-due">⚠️ Past Due</span>';
-            }
+        // Add a few hours to the dates to avoid timezone issues with exact midnight.
+        startDate.setHours(12);
+        endDate.setHours(12);
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate < startDate) {
+            return 0;
         }
+
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth();
+        const endYear = endDate.getFullYear();
+        const endMonth = endDate.getMonth();
         
-        let contactInfo = '';
-        // Use new joined customer name (customer_name) for existence check
-        if (pallet.customer_name) { 
-            // Use customer_email for actions, falling back to old primary_contact_email for older, non-migrated units
-            const emailForActions = pallet.customer_email || pallet.primary_contact_email; 
-            
-            contactInfo = `
-                <div class="sum-pallet-contact-info">
-                    <div class="sum-pallet-contact-section">
-                        <h4>👤 Customer (ID: ${pallet.customer_id || 'N/A'})</h4>
-                        <div class="sum-pallet-contact-details">
-                            <div class="sum-pallet-contact-item">
-                                <span class="sum-pallet-contact-label">Name:</span>
-                                <span class="sum-pallet-contact-value">${pallet.customer_name}</span>
-                            </div>
-                            <div class="sum-pallet-contact-item">
-                                <span class="sum-pallet-contact-label">Phone:</span>
-                                <span class="sum-pallet-contact-value">${pallet.customer_phone || 'N/A'}</span>
-                            </div>
-                            <div class="sum-pallet-contact-item">
-                                <span class="sum-pallet-contact-label">WhatsApp:</span>
-                                <span class="sum-pallet-contact-value">${pallet.customer_whatsapp || 'N/A'}</span>
-                            </div>
-                            <div class="sum-pallet-contact-item">
-                                <span class="sum-pallet-contact-label">Email:</span>
-                                <span class="sum-pallet-contact-value">${pallet.customer_email || 'N/A'}</span>
-                            </div>
-                            ${pallet.period_from && pallet.period_until ? `
-                                <div class="sum-pallet-contact-item">
-                                    <span class="sum-pallet-contact-label">Period:</span>
-                                    <span class="sum-pallet-contact-value">${pallet.period_from} - ${pallet.period_until}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                        ${emailForActions ? `
-                            <div class="sum-pallet-contact-actions">
-                                <button type="button" class="sum-pallet-contact-btn sum-pallet-contact-btn-invoice frontend-send-pallet-invoice-btn" data-pallet-id="${pallet.id}">
-                                    📧 Send Invoice
-                                </button>
-                                <button type="button" class="sum-pallet-contact-btn sum-pallet-contact-btn-pdf frontend-regenerate-pallet-pdf-btn" data-pallet-id="${pallet.id}">
-                                    📄 PDF
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                    ${pallet.secondary_contact_name ? `
-                        <div class="sum-pallet-contact-section">
-                            <h4>👥 Secondary Contact</h4>
-                            <div class="sum-pallet-contact-details">
-                                <div class="sum-pallet-contact-item">
-                                    <span class="sum-pallet-contact-label">Name:</span>
-                                    <span class="sum-pallet-contact-value">${pallet.secondary_contact_name}</span>
-                                </div>
-                                <div class="sum-pallet-contact-item">
-                                    <span class="sum-pallet-contact-label">Phone:</span>
-                                    <span class="sum-pallet-contact-value">${pallet.secondary_contact_phone || 'N/A'}</span>
-                                </div>
-                                <div class="sum-pallet-contact-item">
-                                    <span class="sum-pallet-contact-label">Email:</span>
-                                    <span class="sum-pallet-contact-value">${pallet.secondary_contact_email || 'N/A'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
+        // Calculate the total number of months spanned.
+        const months = (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+        return months;
+    } catch (e) {
+        return 0;
+    }
+}
+
+
+function renderPalletCard(pallet) {
+    // Determine if the pallet is assigned to a customer.
+    const isAssigned = pallet.customer_id && parseInt(pallet.customer_id) > 0;
+
+    // --- NEW: Calculate total months ---
+    const totalMonths = calculateOccupiedMonths(pallet.period_from, pallet.period_until);
+
+    // --- NEW: Format dates for display ---
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '—';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    // Set the badge text and class based on assignment and payment status.
+    let statusText = 'Available';
+    let statusClass = 'available'; // Green for available
+
+    if (isAssigned) {
+        statusText = pallet.payment_status ? pallet.payment_status.replace('_', ' ') : 'Assigned';
+        switch (pallet.payment_status) {
+            case 'paid':
+                statusClass = 'paid'; // Blue for paid
+                break;
+            case 'unpaid':
+                statusClass = 'unpaid'; // Yellow for unpaid
+                break;
+            case 'overdue':
+                statusClass = 'overdue'; // Red for overdue
+                break;
+            default:
+                statusClass = 'assigned'; // Default grey for assigned
         }
-        
-        return `
-            <div class="sum-pallet-card">
-                <div class="sum-pallet-card-header">
-                    <div class="sum-pallet-card-title">
-                        <div class="sum-pallet-card-info">
-                            <h3>🟠 ${pallet.pallet_name}</h3>
-                            <p>${pallet.pallet_type} Pallet • ${pallet.actual_height}m (${pallet.charged_height}m) • ${parseFloat(pallet.cubic_meters).toFixed(2)} m³${monthlyPrice ? ` • ${monthlyPrice}` : ''}</p>
-                        </div>
-                        <div class="sum-pallet-card-actions">
-                            <button type="button" class="sum-pallet-card-btn frontend-edit-pallet" data-pallet-id="${pallet.id}" title="Edit">
-                                ✏️
-                            </button>
-                            <button type="button" class="sum-pallet-card-btn frontend-delete-pallet" data-pallet-id="${pallet.id}" title="Delete">
-                                🗑️
-                            </button>
-                        </div>
-                    </div>
-                    <div class="sum-pallet-badges">
-                        ${paymentBadge}
-                        ${pastDueBadge}
-                    </div>
+    }
+
+    const card = `
+        <div class="sum-pallet-card" data-pallet-id="${pallet.id}">
+            <div class="sum-pallet-card-header">
+                <div class="sum-pallet-card-title">
+                    <span class="sum-pallet-icon">${pallet.pallet_type === 'EU' ? '🇪🇺' : '🇺🇸'}</span>
+                    <h3>${pallet.pallet_name}</h3>
                 </div>
-                
-                ${contactInfo}
+                <div class="sum-pallet-card-status-badge ${statusClass}">
+                    ${statusText}
+                </div>
             </div>
-        `;
-    }
-    
-    function getFilteredPallets() {
-        const searchTerm = $('#frontend-search-pallets').val().toLowerCase();
-        const filterStatus = $('#frontend-filter-status').val();
+
+            <div class="sum-pallet-card-body">
+                <div class="sum-pallet-detail-row">
+                    <span class="sum-pallet-detail-label">Customer</span>
+                    <span class="sum-pallet-detail-value">${isAssigned ? (pallet.customer_name || 'N/A') : '—'}</span>
+                </div>
+
+                <div class="sum-pallet-period-row">
+                    <div class="sum-pallet-period-item">
+                        <span class="sum-pallet-detail-label">From</span>
+                        <span class="sum-pallet-detail-value">${formatDate(pallet.period_from)}</span>
+                    </div>
+                    <div class="sum-pallet-period-item">
+                        <span class="sum-pallet-detail-label">Until</span>
+                        <span class="sum-pallet-detail-value">${formatDate(pallet.period_until)}</span>
+                    </div>
+                    <div class="sum-pallet-period-item sum-pallet-period-total">
+                        <span class="sum-pallet-detail-label">Total</span>
+                        <span class="sum-pallet-detail-value">${totalMonths > 0 ? totalMonths + (totalMonths > 1 ? ' Months' : ' Month') : '—'}</span>
+                    </div>
+                </div>
+                <div class="sum-pallet-detail-row">
+                    <span class="sum-pallet-detail-label">Price</span>
+                    <span class="sum-pallet-detail-value">€${parseFloat(pallet.monthly_price || 0).toFixed(2)} / mo</span>
+                </div>
+            </div>
+
+            <div class="sum-pallet-card-actions">
+                 <button type="button" class="sum-pallet-btn sum-pallet-btn-icon frontend-regenerate-pallet-pdf-btn" data-pallet-id="${pallet.id}" title="Download PDF">📄</button>
+                 <button type="button" class="sum-pallet-btn sum-pallet-btn-icon frontend-send-pallet-invoice-btn" data-pallet-id="${pallet.id}" title="Send Invoice">✉️</button>
+                 <button type="button" class="sum-pallet-btn sum-pallet-btn-secondary frontend-edit-pallet" data-pallet-id="${pallet.id}">Edit</button>
+                 <button type="button" class="sum-pallet-btn sum-pallet-btn-danger frontend-delete-pallet" data-pallet-id="${pallet.id}">Delete</button>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+// in pallet-frontend.js
+
+function getFilteredPallets() {
+    const searchTerm = $('#frontend-search-pallets').val().toLowerCase();
+    const filterStatus = $('#frontend-filter-status').val();
+
+    return pallets.filter(function(pallet) {
+        // --- UPDATED SEARCH LOGIC ---
+        // Check both the pallet name and the customer's name for a match.
+        // This is safer because customer_name comes from the database JOIN.
+        const matchesSearch = (
+            (pallet.pallet_name && pallet.pallet_name.toLowerCase().includes(searchTerm)) ||
+            (pallet.customer_name && pallet.customer_name.toLowerCase().includes(searchTerm))
+        );
+        // --- END OF UPDATE ---
         
-        return pallets.filter(function(pallet) {
-            const matchesSearch = pallet.pallet_name.toLowerCase().includes(searchTerm) ||
-                                (pallet.primary_contact_name && pallet.primary_contact_name.toLowerCase().includes(searchTerm));
-            
-            let matchesFilter = true;
-            
-            if (filterStatus === 'eu') {
-                matchesFilter = pallet.pallet_type === 'EU';
-            } else if (filterStatus === 'us') {
-                matchesFilter = pallet.pallet_type === 'US';
-            } else if (filterStatus === 'past_due') {
-                if (pallet.period_until) {
-                    const today = new Date();
-                    const endDate = new Date(pallet.period_until);
-                    matchesFilter = endDate < today;
-                } else {
-                    matchesFilter = false;
-                }
-            } else if (filterStatus === 'unpaid') {
-                matchesFilter = pallet.payment_status !== 'paid';
+        let matchesFilter = true;
+        
+        if (filterStatus === 'eu') {
+            matchesFilter = pallet.pallet_type === 'EU';
+        } else if (filterStatus === 'us') {
+            matchesFilter = pallet.pallet_type === 'US';
+        } else if (filterStatus === 'past_due') {
+            if (pallet.period_until) {
+                const today = new Date();
+                // Set hours to 0 to compare dates only
+                today.setHours(0, 0, 0, 0); 
+                const endDate = new Date(pallet.period_until);
+                matchesFilter = endDate < today;
+            } else {
+                matchesFilter = false;
             }
-            
-            return matchesSearch && matchesFilter;
-        });
-    }
-    
+        } else if (filterStatus === 'unpaid') {
+            matchesFilter = pallet.payment_status !== 'paid';
+        }
+        
+        return matchesSearch && matchesFilter;
+    });
+}    
     function filterPallets() {
         renderPallets();
     }
@@ -313,7 +343,10 @@ jQuery(document).ready(function($) {
         $('#frontend-period-from').val(pallet.period_from || '');
         $('#frontend-period-until').val(pallet.period_until || '');
         $('#frontend-payment-status').val(pallet.payment_status || 'paid');
-        $('#frontend-customer-id').val(pallet.customer_id || ''); 
+        
+        // --- THIS IS THE KEY CHANGE ---
+        $('#frontend-pallet-customer-id').val(pallet.customer_id || ''); 
+        
         $('#frontend-secondary-name').val(pallet.secondary_contact_name || '');
         $('#frontend-secondary-phone').val(pallet.secondary_contact_phone || '');
         $('#frontend-secondary-whatsapp').val(pallet.secondary_contact_whatsapp || '');
@@ -328,7 +361,10 @@ jQuery(document).ready(function($) {
     function resetForm() {
         $('#frontend-pallet-form')[0].reset();
         $('#frontend-pallet-id').val('');
-        $('#frontend-customer-id').val(''); 
+
+        // --- THIS IS THE KEY CHANGE ---
+        $('#frontend-pallet-customer-id').val(''); 
+        
         $('#frontend-has-secondary-contact').prop('checked', false);
         $('#frontend-payment-status').val('paid');
         $('#frontend-pallet-type').val('EU');
@@ -530,6 +566,72 @@ jQuery(document).ready(function($) {
             setTimeout(() => toast.remove(), 300);
         }, 5000);
     }
+     function loadCustomersForSelect(selectCustomerId = null) {
+        const $select = $('#frontend-pallet-customer-id');
+        
+        $.ajax({
+            url: sum_pallet_frontend_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_get_customer_list_frontend', // Correct action name
+                nonce: sum_pallet_frontend_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    const currentVal = selectCustomerId || $select.val(); 
+                    
+                    $select.empty().append('<option value="">-- Select a Customer --</option>');
+                    
+                    response.data.forEach(customer => {
+                        $select.append(`<option value="${customer.id}">${customer.full_name}</option>`);
+                    });
+
+                    if (currentVal) {
+                        $select.val(currentVal);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * NEW: Handles the submission of the new customer form.
+     */
+function saveNewCustomer() {
+    const customerData = {
+        id: '', // New customer
+        full_name: $('#frontend-new-customer-name').val(),
+        email: $('#frontend-new-customer-email').val(),
+        phone: $('#frontend-new-customer-phone').val(),
+        whatsapp: $('#frontend-new-customer-whatsapp').val(),
+        full_address: $('#frontend-new-customer-address').val(),
+        upload_id: $('#frontend-new-customer-id-upload').val(),
+        utility_bill: $('#frontend-new-customer-bill-upload').val()
+    };
+
+    $.ajax({
+        url: sum_pallet_frontend_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'sum_save_customer_frontend',
+            nonce: sum_pallet_frontend_ajax.nonce,
+            customer_data: customerData
+        },
+        success: function(response) {
+            if (response.success) {
+                customerModal.hide();
+                $('#frontend-customer-creation-form')[0].reset();
+                showSuccess('Customer created!');
+                loadCustomersForSelect(response.data.customer_id);
+            } else {
+                showError(response.data.message || 'Could not save customer.');
+            }
+        },
+        error: function() {
+            showError('An error occurred while saving the customer.');
+        }
+    });
+}
 });
 
 // Add toast styles dynamically

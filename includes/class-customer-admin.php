@@ -6,8 +6,18 @@ class SUM_Customer_Admin {
     /** @var SUM_Customer_Database */
     protected $db;
 
-    public function __construct($customer_db) {
-        $this->db = $customer_db;
+    public function __construct() {
+        $this->customer_db = new SUM_Customer_Database();
+        
+        add_action('admin_menu', array($this, 'add_customer_admin_menu'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+
+        // AJAX handlers
+        add_action('wp_ajax_sum_get_customer_list', array($this, 'ajax_get_customer_list'));
+        add_action('wp_ajax_sum_delete_customer', array($this, 'ajax_delete_customer'));
+        
+        // Note: 'sum_save_customer' is assumed to be handled in a central AJAX handler class.
+        // If it's not, you would add its registration and handler function here as well.
     }
 
     public function init() {
@@ -30,37 +40,69 @@ class SUM_Customer_Admin {
         );
     }
 
-    public function render_customers_list() {
-        if ( ! current_user_can('manage_options') ) return;
-        $q = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
-        $rows = $q ? $this->db->search_customers($q, 200) : $this->db->search_customers('', 200);
-        ?>
-        <div class="wrap">
-            <h1 class="wp-heading-inline">Customers</h1>
-            <form method="get" style="margin-top:10px;">
-                <input type="hidden" name="page" value="sum-customers">
-                <input type="search" name="s" value="<?php echo esc_attr($q); ?>" placeholder="Search by name, email, phone" class="regular-text">
-                <button class="button">Search</button>
-            </form>
-            <table class="widefat striped" style="margin-top:15px;">
-                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Active</th><th>Actions</th></tr></thead>
-                <tbody>
-                <?php if ($rows): foreach ($rows as $r): ?>
-                    <tr>
-                        <td><?php echo esc_html($r['name']); ?></td>
-                        <td><?php echo esc_html($r['email']); ?></td>
-                        <td><?php echo esc_html($r['phone']); ?></td>
-                        <td><?php echo $r['is_active'] ? 'Yes' : 'No'; ?></td>
-                        <td><a class="button" href="<?php echo esc_url( admin_url('admin.php?page=sum-customer-detail&customer_id=' . intval($r['id'])) ); ?>">View</a></td>
-                    </tr>
-                <?php endforeach; else: ?>
-                    <tr><td colspan="5">No customers found.</td></tr>
-                <?php endif; ?>
-                </tbody>
-            </table>
-        </div>
-        <?php
+    public function render_customer_page() {
+        include_once SUM_PATH . 'templates/customers-page.php';
     }
+    
+     /**
+     * Enqueues admin scripts and styles for the customer page.
+     */
+    public function enqueue_scripts($hook) {
+        // Only load on our specific customer page
+        if ('toplevel_page_sum-customers' !== $hook) {
+            return;
+        }
+
+        wp_enqueue_script(
+            'sum-customers-admin-js',
+            SUM_URL . 'modules/customers/assets/customers-admin.js',
+            array('jquery'),
+            SUM_VERSION,
+            true
+        );
+
+        // Pass data to JavaScript
+        wp_localize_script('sum-customers-admin-js', 'sum_customer_admin_vars', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('sum_customer_admin_nonce')
+        ));
+    }
+    
+    /**
+     * AJAX handler to fetch all customers.
+     */
+    public function ajax_get_customer_list() {
+        check_ajax_referer('sum_customer_admin_nonce', 'nonce');
+        
+        $customers = $this->customer_db->get_all_customers();
+        
+        if (is_array($customers)) {
+            wp_send_json_success($customers);
+        } else {
+            wp_send_json_error(array('message' => 'Failed to retrieve customers.'));
+        }
+    }
+
+    /**
+     * AJAX handler to delete a customer.
+     */
+    public function ajax_delete_customer() {
+        check_ajax_referer('sum_customer_admin_nonce', 'nonce');
+
+        if (!isset($_POST['customer_id']) || !is_numeric($_POST['customer_id'])) {
+            wp_send_json_error(array('message' => 'Invalid customer ID.'));
+        }
+        
+        $customer_id = intval($_POST['customer_id']);
+        $result = $this->customer_db->delete_customer($customer_id);
+
+        if ($result) {
+            wp_send_json_success(array('message' => 'Customer deleted successfully.'));
+        } else {
+            wp_send_json_error(array('message' => 'Failed to delete customer.'));
+        }
+    }
+
 
     public function render_customer_detail() {
         if ( ! current_user_can('manage_options') ) return;
@@ -168,3 +210,5 @@ class SUM_Customer_Admin {
         <?php
     }
 }
+
+new SUM_Customer_Admin();

@@ -92,10 +92,14 @@ function populateForm(unit) {
     jQuery('#frontend-period-from').val(unit.period_from || '');
     jQuery('#frontend-period-until').val(unit.period_until || '');
     jQuery('#frontend-payment-status').val(unit.payment_status || 'paid');
-    jQuery('#frontend-primary-name').val(unit.primary_contact_name || '');
-    jQuery('#frontend-primary-phone').val(unit.primary_contact_phone || '');
-    jQuery('#frontend-primary-whatsapp').val(unit.primary_contact_whatsapp || '');
-    jQuery('#frontend-primary-email').val(unit.primary_contact_email || '');
+    $('#frontend-customer-id').val(unit.customer_id || '');
+        if (unit.customer_name) {
+            // Display the customer name for visual confirmation
+            $('#frontend-customer-display-info').text(unit.customer_name + ' (' + unit.customer_email + ')');
+        } else {
+            // Handles older units without a customer_id
+            $('#frontend-customer-display-info').text('No primary customer linked. Customer data is managed centrally.');
+        }
     jQuery('#frontend-secondary-name').val(unit.secondary_contact_name || '');
     jQuery('#frontend-secondary-phone').val(unit.secondary_contact_phone || '');
     jQuery('#frontend-secondary-whatsapp').val(unit.secondary_contact_whatsapp || '');
@@ -111,6 +115,8 @@ function populateForm(unit) {
 function resetForm() {
     jQuery('#frontend-unit-form')[0].reset();
     jQuery('#frontend-unit-id').val('');
+    $('#frontend-customer-id').val('');
+    $('#frontend-customer-display-info').text('Customer data is managed centrally and linked via the system.');
     jQuery('#frontend-has-secondary-contact').prop('checked', false);
     jQuery('#frontend-is-occupied').prop('checked', false); // Ensure this is unchecked for new units
     jQuery('#frontend-payment-status').val('paid');

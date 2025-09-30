@@ -9,6 +9,28 @@ if (!defined('ABSPATH')) {
 
 class SUM_Ajax_Handlers {
     
+      /** @var self */
+    private static $instance = null;
+
+    /** @var SUM_Database */
+    private $db;
+
+    /** @var SUM_Pallet_Database */
+    private $pallet_db;
+
+    /** @var SUM_Customer_Admin */
+    private $customer_admin;
+
+    /** @var SUM_Frontend */
+    private $frontend;
+    
+     public static function instance() {
+        if ( self::$instance === null ) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
     private $database;
     private $customer_database; 
     
@@ -42,6 +64,9 @@ class SUM_Ajax_Handlers {
         add_action('wp_ajax_sum_send_manual_invoice_frontend', array($this, 'send_manual_invoice_frontend'));
         add_action('wp_ajax_sum_regenerate_pdf_frontend', array($this, 'regenerate_pdf_frontend'));
         add_action('wp_ajax_sum_install_dompdf', array($this, 'install_dompdf'));
+        add_action('wp_ajax_sum_get_customers_frontend', array($this, 'get_customers_frontend'));
+add_action('wp_ajax_sum_save_customer_frontend', array($this, 'save_customer_frontend'));
+add_action('wp_ajax_sum_delete_customer_frontend', array($this, 'delete_customer_frontend'));
 
     }
     
@@ -756,4 +781,30 @@ public function update_setting($key, $value) {
             wp_send_json_error('Failed to save customer.');
         }
     }
+    // Add these new methods inside the SUM_Ajax_Handlers class:
+public function get_customers_frontend() {
+    if (!$this->check_frontend_access()) wp_send_json_error('Access Denied');
+    wp_send_json_success($this->customer_database->get_all_customers());
+}
+
+public function save_customer_frontend() {
+    if (!$this->check_frontend_access()) wp_send_json_error('Access Denied');
+    $data = $_POST['customer_data'] ?? [];
+    $result = $this->customer_database->save_customer($data);
+    if ($result) {
+        wp_send_json_success(['id' => $result]);
+    } else {
+        wp_send_json_error(['message' => 'Failed to save customer.']);
+    }
+}
+
+public function delete_customer_frontend() {
+    if (!$this->check_frontend_access()) wp_send_json_error('Access Denied');
+    $id = absint($_POST['customer_id'] ?? 0);
+    if ($this->customer_database->delete_customer($id)) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error(['message' => 'Failed to delete customer.']);
+    }
+}
 }

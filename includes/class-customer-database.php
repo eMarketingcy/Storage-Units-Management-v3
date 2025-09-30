@@ -22,44 +22,93 @@ class SUM_Customer_Database {
         $table_name = $wpdb->prefix . 'storage_customers';
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $customer_id), ARRAY_A);
     }
+    
+public function get_all_customers( $args = array() ) {
+    global $wpdb;
 
-    /** * Insert or update a customer record.
-     * @param array $data Customer data array.
-     * @return int|false The ID of the inserted/updated customer or false on error.
-     */
-    public function save_customer($data) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_customers';
+    $table = $wpdb->prefix . 'storage_customers';
 
-        $customer_id = intval($data['customer_id'] ?? 0);
+    $defaults = array( 'orderby' => 'id', 'order'   => 'DESC' );
+    $args = wp_parse_args( $args, $defaults );
+    $orderby = in_array( $args['orderby'], array( 'id', 'full_name', 'email' ), true ) ? $args['orderby'] : 'id';
+    $order   = strtoupper( $args['order'] ) === 'ASC' ? 'ASC' : 'DESC';
 
-        $customer_data = array(
-            'full_name'    => sanitize_text_field($data['full_name']),
-            'full_address' => sanitize_textarea_field($data['full_address'] ?? ''), 
-            'phone'        => sanitize_text_field($data['phone'] ?? ''),
-            'whatsapp'     => sanitize_text_field($data['whatsapp'] ?? ''),
-            'email'        => sanitize_email($data['email']),
-            'upload_id'    => sanitize_text_field($data['upload_id'] ?? ''), 
-            'utility_bill' => sanitize_text_field($data['utility_bill'] ?? ''), 
-            'updated_at'   => current_time('mysql', 1)
-        );
+    $sql = "SELECT id, full_name, email, phone, whatsapp, full_address FROM {$table} ORDER BY {$orderby} {$order}";
+    $rows = $wpdb->get_results( $sql, ARRAY_A );
 
-        // Data format: (full_name, full_address, phone, whatsapp, email, upload_id, utility_bill, updated_at)
-        $format = array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');
+    $units_table = $wpdb->prefix . 'storage_units';
+    $pallets_table = $wpdb->prefix . 'storage_pallets';
 
-        if ($customer_id > 0) {
-            // Update existing customer
-            $result = $wpdb->update($table_name, $customer_data, array('id' => $customer_id), $format, array('%d'));
-            return $result === false ? false : $customer_id;
+    foreach ($rows as $key => $row) {
+        $customer_id = absint($row['id']);
+        
+        // Existing counts
+        $rows[$key]['unit_count'] = $wpdb->get_var("SELECT COUNT(*) FROM {$units_table} WHERE customer_id = {$customer_id}");
+        $rows[$key]['pallet_count'] = $wpdb->get_var("SELECT COUNT(*) FROM {$pallets_table} WHERE customer_id = {$customer_id}");
+        
+        // --- NEW: Count unpaid rentals for each customer ---
+        $unpaid_units = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$units_table} WHERE customer_id = %d AND payment_status != 'paid'",
+            $customer_id
+        ));
+        $unpaid_pallets = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$pallets_table} WHERE customer_id = %d AND payment_status != 'paid'",
+            $customer_id
+        ));
+        $rows[$key]['unpaid_count'] = (int)$unpaid_units + (int)$unpaid_pallets;
+    }
+    
+    return is_array( $rows ) ? $rows : array();
+}
+
+    /**
+ * Insert or update a customer record.
+ * @param array $data Customer data array.
+ * @return array|false The result of the operation or false on error.
+ */
+public function save_customer($data) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'storage_customers';
+
+    // --- FIX: Use 'id' from the form, not 'customer_id' ---
+    $customer_id = isset($data['id']) ? absint($data['id']) : 0;
+
+    // Sanitize all incoming data from the form
+    $customer_data = array(
+        'full_name'    => isset($data['full_name']) ? sanitize_text_field($data['full_name']) : '',
+        'email'        => isset($data['email']) ? sanitize_email($data['email']) : '',
+        'phone'        => isset($data['phone']) ? sanitize_text_field($data['phone']) : '',
+        'whatsapp'     => isset($data['whatsapp']) ? sanitize_text_field($data['whatsapp']) : '',
+        'full_address' => isset($data['full_address']) ? sanitize_textarea_field($data['full_address']) : '',
+    );
+
+    // Filter out any fields that weren't submitted to avoid overwriting with blanks
+    $customer_data = array_filter($customer_data, function($value) {
+        return $value !== null;
+    });
+
+    if (empty($customer_data['full_name']) || empty($customer_data['email'])) {
+        return ['status' => 'error', 'message' => 'Full name and email are required.'];
+    }
+
+    if ($customer_id > 0) {
+        // Update existing customer
+        $result = $wpdb->update($table_name, $customer_data, array('id' => $customer_id));
+        if ($result === false) {
+            return ['status' => 'error', 'message' => 'Database update failed.'];
+        }
+        return ['status' => 'success', 'id' => $customer_id];
+    } else {
+        // Insert new customer
+        $customer_data['created_at'] = current_time('mysql', 1);
+        $result = $wpdb->insert($table_name, $customer_data);
+        if ($result) {
+            return ['status' => 'success', 'id' => $wpdb->insert_id];
         } else {
-            // Insert new customer
-            $customer_data['created_at'] = current_time('mysql', 1);
-            $format[] = '%s'; // Add format for created_at
-            
-            $result = $wpdb->insert($table_name, $customer_data, $format);
-            return $result ? $wpdb->insert_id : false;
+            return ['status' => 'error', 'message' => 'Database insert failed.'];
         }
     }
+}
 
     /** * Delete a customer record.
      * @param int $customer_id ID of the customer to delete.
@@ -75,5 +124,39 @@ class SUM_Customer_Database {
         
         return $wpdb->delete($table_name, array('id' => $customer_id), array('%d'));
     }
+    
+    public function get_customer_rentals($customer_id) {
+    global $wpdb;
+    $customer_id = absint($customer_id);
+    
+    $units_table = $wpdb->prefix . 'storage_units';
+    $pallets_table = $wpdb->prefix . 'storage_pallets';
+
+    $sql = "
+        (SELECT
+            'unit' as type,
+            id,
+            unit_name as name,
+            period_from,
+            period_until,
+            monthly_price,
+            payment_status
+        FROM {$units_table}
+        WHERE customer_id = {$customer_id})
+        UNION ALL
+        (SELECT
+            'pallet' as type,
+            id,
+            pallet_name as name,
+            period_from,
+            period_until,
+            monthly_price,
+            payment_status
+        FROM {$pallets_table}
+        WHERE customer_id = {$customer_id})
+    ";
+
+    return $wpdb->get_results($sql, ARRAY_A);
+}
 
 }

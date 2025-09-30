@@ -1,0 +1,246 @@
+/* assets/frontend-style.css */
+
+/* --- UNIFIED FRONTEND STYLES FOR UNITS, PALLETS & CUSTOMERS --- */
+
+/* CSS Variables for Consistent Theming */
+:root {
+    --frontend-primary: #f97316;
+    --frontend-primary-dark: #ea580c;
+    --frontend-primary-light: #fed7aa;
+    --frontend-secondary: #64748b;
+    --frontend-success: #10b981;
+    --frontend-warning: #f59e0b;
+    --frontend-danger: #ef4444;
+    --frontend-background: #f8fafc;
+    --frontend-surface: #ffffff;
+    --frontend-text: #1e293b;
+    --frontend-text-muted: #64748b;
+    --frtonend-surface: #ffffff;
+    --frontend-border: #e2e8f0;
+    --frontend-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --frontend-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --frontend-radius: 12px;
+    --frontend-radius-lg: 16px;
+    --frontend-spacing: 1rem;
+}
+
+.sum-frontend-stat-card {
+    background: var(--pallet-surface);
+    border-radius: var(--frontend-radius-lg);
+    padding: var(--pallet-spacing-lg);
+    box-shadow: var(--frontend-shadow);
+    display: flex;
+    align-items: center;
+    gap: var(--frontend-spacing);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.total-customers:before,
+.with-units:before,
+.with-pallets:before,
+.unpaid-invoices::before{
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    transition: height 0.3s ease;
+    
+}
+
+.total-customers:hover,
+.with-units:hover,
+.with-pallets:hover,
+.unpaid-invoices:hover{
+    transform: translateY(-2px);
+    box-shadow: var(--frontend-shadow-lg);
+}
+
+
+.total-customers::before {
+    background: var(--frontend-primary);
+}
+
+.with-units::before {
+    background: var(--frontend-primary-dark);
+}
+
+.with-pallets::before {
+    background: var(--frontend-secondary);
+}
+
+.unpaid-invoices::before{
+    background: var(--frontend-danger);
+}
+
+.total-customers:hover::before,
+.with-units:hover::before,
+.with-pallets:hover::before,
+.unpaid-invoices:hover::before{
+    height: 8px;
+}
+
+
+/* Base & Layout */
+body {
+    background-color: var(--frontend-background);
+}
+.sum-frontend-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: var(--frontend-text);
+    line-height: 1.6;
+}
+.sum-frontend-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--frontend-spacing);
+}
+
+/* Header & Navigation */
+.sum-frontend-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, var(--frontend-primary), var(--frontend-primary-dark));
+    color: white;
+    border-radius: var(--frontend-radius-lg);
+    box-shadow: var(--frontend-shadow);
+    margin-bottom: 2rem;
+}
+.sum-frontend-title-section { display: flex; align-items: center; gap: var(--frontend-spacing); }
+.sum-frontend-icon { font-size: 2.5rem; }
+.sum-frontend-title-text h1 { margin: 0; font-size: 1.75rem; font-weight: 800; }
+.sum-frontend-title-text p { margin: 0; opacity: 0.9; font-size: 0.875rem; }
+.sum-frontend-user-section { display: flex; align-items: center; gap: var(--frontend-spacing); }
+.sum-frontend-user-name { font-weight: 600; }
+.sum-frontend-logout-btn { color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: var(--frontend-radius); }
+.sum-frontend-navigation { display: flex; gap: var(--frontend-spacing); margin-bottom: 2rem; }
+.sum-frontend-nav-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--frontend-surface); border: 2px solid var(--frontend-border); border-radius: var(--frontend-radius); text-decoration: none; color: var(--frontend-text-muted); font-weight: 500; transition: all 0.2s ease; box-shadow: var(--frontend-shadow); }
+.sum-frontend-nav-item:hover { border-color: var(--frontend-primary); color: var(--frontend-primary); text-decoration: none; }
+.sum-frontend-nav-active { background: var(--frontend-primary); border-color: var(--frontend-primary); color: white !important; }
+
+/* Stats, Controls, Buttons */
+.sum-frontend-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--frontend-spacing); margin-bottom: 2rem; }
+.sum-frontend-stat-card { background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); padding: 1.5rem; box-shadow: var(--frontend-shadow); }
+.sum-frontend-stat-value { font-size: 2rem; font-weight: 800; font-size: 2rem; font-weight: 800; color: var(--frontend-text); margin-bottom: 0.25rem; }
+.sum-frontend-stat-label { font-size: 0.875rem; color: var(--frontend-text-muted); }
+.sum-frontend-controls { background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); padding: 1.5rem; box-shadow: var(--frontend-shadow); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; gap: var(--frontend-spacing); flex-wrap: wrap; }
+.sum-frontend-search-section { flex: 1; }
+.sum-frontend-search-input { width: 100%; max-width: 400px; padding: 0.75rem 1rem; border: 2px solid var(--frontend-border); border-radius: var(--frontend-radius); font-size: 1rem; }
+.sum-frontend-action-group { display: flex; align-items: center; gap: var(--frontend-spacing); }
+.sum-frontend-view-toggle { display: flex; border: 2px solid var(--frontend-border); border-radius: var(--frontend-radius); overflow: hidden; }
+.sum-frontend-view-toggle .sum-frontend-btn { background: var(--frontend-surface); color: var(--frontend-text-muted); border-radius: 0; box-shadow: none; }
+.sum-frontend-view-toggle .sum-frontend-btn.active { background: var(--frontend-primary); color: white; }
+.sum-frontend-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border: none; border-radius: var(--frontend-radius); font-size: 1rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; }
+.sum-frontend-btn-primary { background: linear-gradient(135deg, var(--frontend-primary), var(--frontend-primary-dark)); color: white; }
+.sum-frontend-btn-secondary { background: var(--frontend-secondary); color: white; }
+.sum-frontend-btn-danger { background: var(--frontend-danger); color: white; }
+
+/* --- UNIFIED CARD STYLES --- */
+.sum-frontend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+.sum-frontend-card { display: flex; flex-direction: column; background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); box-shadow: var(--frontend-shadow); border: 1px solid var(--frontend-border); transition: all 0.3s ease; }
+.sum-frontend-card:hover { transform: translateY(-4px); box-shadow: var(--frontend-shadow-lg); border-color: var(--frontend-primary); }
+.sum-frontend-card-header { display: flex; justify-content: space-between; align-items: center; padding: var(--frontend-spacing); border-bottom: 1px solid var(--frontend-border); }
+.sum-frontend-card-title { display: flex; align-items: center; gap: 0.75rem; }
+.sum-frontend-card-title h3 { margin: 0; font-size: 1.25rem; }
+.sum-frontend-card-status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+.sum-frontend-card-status-badge.available { background-color: #dcfce7; color: #166534; }
+.sum-frontend-card-status-badge.paid { background-color: #dbeafe; color: #1e40af; }
+.sum-frontend-card-status-badge.unpaid { background-color: #fef9c3; color: #854d0e; }
+.sum-frontend-card-status-badge.overdue { background-color: #fee2e2; color: #991b1b; }
+.sum-frontend-card-status-badge.assigned { background-color: #e2e8f0; color: #334155; }
+.sum-frontend-card-body { padding: var(--frontend-spacing); flex-grow: 1; display: flex; flex-direction: column; gap: 0.75rem; }
+.sum-frontend-detail-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; }
+.sum-frontend-detail-label { color: var(--frontend-text-muted); }
+.sum-frontend-detail-value { font-weight: 600; }
+.sum-frontend-period-row { display: flex; justify-content: space-between; background-color: var(--frontend-background); border-radius: var(--frontend-radius); padding: 0.75rem; margin: 0.5rem 0; border: 1px solid var(--frontend-border); }
+.sum-frontend-period-item { text-align: center; flex-basis: 33%; }
+.sum-frontend-period-item .sum-frontend-detail-label { font-size: 0.75rem; text-transform: uppercase; }
+.sum-frontend-period-total .sum-frontend-detail-value { font-weight: 700; color: var(--frontend-primary); }
+.sum-frontend-card-actions { display: flex; gap: 0.5rem; padding: var(--frontend-spacing); border-top: 1px solid var(--frontend-border); background-color: var(--frontend-background); border-radius: 0 0 var(--frontend-radius-lg) var(--frontend-radius-lg); }
+.sum-frontend-card-actions .sum-frontend-btn { padding: 0.5rem 1rem; font-size: 0.875rem; flex-grow: 1; }
+.sum-frontend-card-actions .sum-frontend-btn-icon { flex-grow: 0; padding: 0.5rem; width: 36px; height: 36px; background-color: var(--frontend-surface); color: var(--frontend-text-muted); }
+
+/* Table View */
+.sum-view-mode-grid .sum-frontend-table-container { display: none; }
+.sum-view-mode-list .sum-frontend-grid { display: none; }
+.sum-frontend-table-container { overflow-x: auto; background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); box-shadow: var(--frontend-shadow); }
+.sum-frontend-table { width: 100%; border-collapse: collapse; }
+.sum-frontend-table th, .sum-frontend-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--frontend-border); text-align: left; vertical-align: middle; }
+.sum-frontend-table thead th { background: #f1f5f9; font-weight: 600; }
+.sum-frontend-table-actions { display: flex; gap: 0.5rem; }
+
+/* Modal */
+.sum-frontend-modal { position: fixed; top: 0; left: 0; width:100%; height:100%; z-index: 1000; display: none; align-items: center; justify-content: center; }
+.sum-frontend-modal-overlay { position: absolute; top: 0; left: 0; width:100%; height:100%; background: rgba(0, 0, 0, 0.6); }
+.sum-frontend-modal-content { position: relative; background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); width: 100%; max-width: 600px; }
+.sum-frontend-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--frontend-border); }
+.sum-frontend-form { padding: 1.5rem; }
+.sum-frontend-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--frontend-spacing); margin-bottom: 1rem; }
+.sum-frontend-form-group { display: flex; flex-direction: column; }
+.sum-frontend-form-group label { margin-bottom: 0.5rem; font-weight: 600; }
+.sum-frontend-form-group input, .sum-frontend-form-group textarea { padding: 0.75rem; border: 1px solid var(--frontend-border); border-radius: var(--frontend-radius); }
+.sum-frontend-form-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+
+/* --- STYLE FOR UNPAID CUSTOMER INDICATOR --- */
+
+/* Make the card a positioning container */
+.sum-frontend-card {
+    position: relative;
+}
+
+.sum-frontend-card-unpaid-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--frontend-danger);
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+    z-index: 10;
+    
+    /* Animation */
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+@media only screen and (max-width:632px){
+    .sum-frontend-stats-grid {
+    grid-template-columns: minmax(0%, 1fr) 1fr;
+}
+
+.sum-frontend-nav-item {
+    width: 100%;
+}
+.sum-frontend-navigation {
+    flex-wrap: wrap;
+}
+.sum-frontend-header-content {
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.sc-bottom-bar {
+    display: none !important;
+}
+}

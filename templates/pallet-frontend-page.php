@@ -151,6 +151,8 @@ if (!$user_has_access) {
             </button>
         </div>
     </div>
+    
+    
 </div>
 
 <!-- Pallet Modal -->
@@ -219,14 +221,17 @@ if (!$user_has_access) {
                 <h3>👤 Linked Customer</h3>
                 <input type="hidden" id="frontend-customer-id" name="customer_id" value=""> 
                 
-                <div class="sum-pallet-form-grid">
-                    <div class="sum-pallet-form-group full-width">
-                        <label>Customer Link Status</label>
-                        <p id="frontend-customer-display-info" class="sum-pallet-customer-info-placeholder">
-                            Customer data is managed centrally and linked via the system.
-                        </p>
-                    </div>
-                </div>
+                <div class="sum-frontend-form-row">
+    <div class="sum-frontend-form-group sum-frontend-form-group-select">
+        <div class="sum-pallet-form-group">
+        <label for="frontend-pallet-customer-id">Customer</label>
+        <select id="frontend-pallet-customer-id" name="customer_id" required>
+            <option value="">-- Select a Customer --</option>
+            </select>
+            </div>
+        <button type="button" class="sum-pallet-btn sum-pallet-btn-secondary" id="frontend-pallet-add-customer-btn">Add New</button>
+    </div>
+</div>
             </div>
             
             <div class="sum-pallet-form-section">
@@ -273,4 +278,58 @@ if (!$user_has_access) {
             </div>
         </form>
     </div>
+    <div id="frontend-customer-creation-modal" class="sum-pallet-modal-overlay" style="display: none;">
+    <div class="sum-pallet-modal">
+        <div class="sum-pallet-modal-content">
+        <div class="sum-pallet-modal-header">
+            <h2>Create New Customer</h2>
+            <span class="sum-pallet-modal-close" id="frontend-customer-modal-close-btn">&times;</span>
+        </div>
+        <div class="sum-pallet-modal-body">
+            <form id="frontend-customer-creation-form">
+                <div class="sum-pallet-form-grid">
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-name">Full Name *</label>
+                        <input type="text" id="frontend-new-customer-name" required>
+                    </div>
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-email">Email *</label>
+                        <input type="email" id="frontend-new-customer-email" required>
+                    </div>
+                </div>
+                <div class="sum-pallet-form-grid">
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-phone">Phone</label>
+                        <input type="tel" id="frontend-new-customer-phone">
+                    </div>
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-whatsapp">WhatsApp</label>
+                        <input type="tel" id="frontend-new-customer-whatsapp">
+                    </div>
+                </div>
+                <div class="sum-pallet-form-grid">
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-address">Full Address</label>
+                        <textarea id="frontend-new-customer-address" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="sum-pallet-form-grid">
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-id-upload">ID Document (URL/Path)</label>
+                        <input type="text" id="frontend-new-customer-id-upload" placeholder="https://example.com/id.pdf">
+                    </div>
+                
+                    <div class="sum-pallet-form-group">
+                        <label for="frontend-new-customer-bill-upload">Utility Bill (URL/Path)</label>
+                        <input type="text" id="frontend-new-customer-bill-upload" placeholder="https://example.com/bill.pdf">
+                    </div>
+                </div>
+                <div class="sum-pallet-form-actions">
+                     <button type="submit" class="sum-pallet-btn sum-pallet-btn-primary" >Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    </div
+</div>
 </div>

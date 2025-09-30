@@ -898,6 +898,204 @@
     100% { transform: rotate(360deg); }
 }
 
+#frontend-customer-creation-modal {
+    z-index: 9999;
+}
+
+.sum-pallet-modal-body{
+        padding: var(--pallet-spacing-lg);
+}
+
+.sum-frontend-form-group.sum-frontend-form-group-select {
+    display: grid;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    align-content: center;
+    align-items: end;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+/* in pallet-frontend.css */
+
+/* --- NEW PALLET CARD UNIT STYLE --- */
+
+.sum-pallet-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--pallet-surface);
+    border-radius: var(--pallet-radius-lg);
+    box-shadow: var(--pallet-shadow);
+    border: 1px solid var(--pallet-border);
+    transition: all 0.3s ease;
+}
+
+.sum-pallet-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--pallet-shadow-lg);
+    border-color: var(--pallet-primary);
+}
+
+.sum-pallet-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--pallet-spacing);
+    border-bottom: 1px solid var(--pallet-border);
+}
+
+.sum-pallet-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sum-pallet-card-title h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--pallet-text);
+}
+
+.sum-pallet-card-status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Status Badge Colors */
+.sum-pallet-card-status-badge.available {
+    background-color: #dcfce7; /* Green */
+    color: #166534;
+}
+.sum-pallet-card-status-badge.paid {
+    background-color: #dbeafe; /* Blue */
+    color: #1e40af;
+}
+.sum-pallet-card-status-badge.unpaid {
+    background-color: #fef9c3; /* Yellow */
+    color: #854d0e;
+}
+.sum-pallet-card-status-badge.overdue {
+    background-color: #fee2e2; /* Red */
+    color: #991b1b;
+}
+.sum-pallet-card-status-badge.assigned {
+    background-color: #e2e8f0; /* Grey */
+    color: #334155;
+}
+
+
+.sum-pallet-card-body {
+    padding: var(--pallet-spacing);
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.sum-pallet-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.sum-pallet-detail-label {
+    color: var(--pallet-text-muted);
+    font-weight: 500;
+}
+
+.sum-pallet-detail-value {
+    color: var(--pallet-text);
+    font-weight: 600;
+}
+
+.sum-pallet-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: var(--pallet-spacing);
+    border-top: 1px solid var(--pallet-border);
+    background-color: var(--pallet-background);
+    border-radius: 0 0 var(--pallet-radius-lg) var(--pallet-radius-lg);
+}
+
+.sum-pallet-card-actions .sum-pallet-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    flex-grow: 1;
+}
+
+.sum-pallet-card-actions .sum-pallet-btn-icon {
+    flex-grow: 0;
+    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    background-color: var(--pallet-surface);
+    color: var(--pallet-text-muted);
+}
+.sum-pallet-card-actions .sum-pallet-btn-icon:hover {
+    background-color: var(--pallet-secondary);
+    color: white;
+}
+
+.sum-pallet-card-actions .sum-pallet-btn-danger {
+    background-color: var(--pallet-danger);
+    color: white;
+}
+.sum-pallet-card-actions .sum-pallet-btn-danger:hover {
+    background-color: #dc2626;
+    color: white;
+}
+
+/* Remove old card styles to avoid conflicts */
+.sum-pallet-card::before,
+.sum-pallet-card-header .sum-pallet-name,
+.sum-pallet-card-header .sum-pallet-status,
+.sum-pallet-card-body .sum-pallet-card-detail,
+.sum-pallet-card-body .sum-pallet-customer-info {
+    display: none;
+}
+
+/* --- STYLING FOR NEW RENTAL PERIOD ROW --- */
+
+.sum-pallet-period-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--pallet-background);
+    border-radius: var(--pallet-radius);
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    border: 1px solid var(--pallet-border);
+}
+
+.sum-pallet-period-item {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    flex-basis: 33%;
+}
+
+.sum-pallet-period-item .sum-pallet-detail-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sum-pallet-period-item .sum-pallet-detail-value {
+    font-size: 0.875rem;
+}
+
+.sum-pallet-period-total .sum-pallet-detail-value {
+    font-weight: 700;
+    color: var(--pallet-primary);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     :root {

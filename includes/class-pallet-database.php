@@ -110,36 +110,57 @@ public function create_tables() {
 
     // ---------------- Query helpers ----------------
 
+// In class-pallet-database.php
+
 public function get_pallets($filter = 'all') {
-        global $wpdb;
-        $pallets_table = $wpdb->prefix . 'storage_pallets';
-        $customers_table = $wpdb->prefix . 'storage_customers';
+    global $wpdb;
+    $pallets_table = $wpdb->prefix . 'storage_pallets';
+    $customers_table = $wpdb->prefix . 'storage_customers';
 
-        // Select all pallet columns (p.*) and selected customer columns (c.column AS alias)
-        $select = "p.*, c.full_name AS customer_name, c.email AS customer_email, c.phone AS customer_phone, c.whatsapp AS customer_whatsapp";
-        $join = "LEFT JOIN $customers_table c ON p.customer_id = c.id";
+    // Select all pallet columns (p.*) and selected customer columns (c.column AS alias)
+    $select = "p.*, c.full_name AS customer_name, c.email AS customer_email, c.phone AS customer_phone, c.whatsapp AS customer_whatsapp";
+    $join = "LEFT JOIN $customers_table c ON p.customer_id = c.id";
 
-        $where_clause = '';
-        if ($filter === 'past_due') {
-            $where_clause = 'WHERE p.period_until < CURDATE()';
-        } elseif ($filter === 'unpaid') {
-            $where_clause = 'WHERE p.payment_status != "paid"';
-        } elseif ($filter === 'eu') {
-            $where_clause = 'WHERE p.pallet_type = "EU"';
-        } elseif ($filter === 'us') {
-            $where_clause = 'WHERE p.pallet_type = "US"';
-        }
+    $where_clause = '';
+if ($filter === 'past_due') {
+    $today = current_time('Y-m-d');
+    $where_clause = $wpdb->prepare('WHERE p.period_until < %s', $today);
+} elseif ($filter === 'unpaid') {
+    $where_clause = 'WHERE p.payment_status != "paid"';
+} elseif ($filter === 'eu') {
+    $where_clause = 'WHERE p.pallet_type = "EU"';
+} elseif ($filter === 'us') {
+    $where_clause = 'WHERE p.pallet_type = "US"';
+}
 
-        // Use aliases in the query
-        $sql = "SELECT $select FROM $pallets_table p $join $where_clause ORDER BY p.pallet_name";
+$sql = "SELECT $select FROM $pallets_table p $join $where_clause ORDER BY p.id DESC";
+$results = $wpdb->get_results($sql, ARRAY_A);
 
-        return $wpdb->get_results($sql, ARRAY_A);
-    }
-    public function get_pallet($pallet_id) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_pallets';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", (int)$pallet_id), ARRAY_A);
-    }
+// Logging tip: avoid dumping whole arrays to error_log in production
+error_log('SUM Pallet Query Count: ' . (is_array($results) ? count($results) : 0));
+
+return $results;
+}
+
+// in class-pallet-database.php
+
+public function get_pallet($pallet_id) {
+    global $wpdb;
+    $pallets_table = $wpdb->prefix . 'storage_pallets';
+    $customers_table = $wpdb->prefix . 'storage_customers';
+
+    // This query now joins the customer's details with the pallet's details.
+    $sql = $wpdb->prepare(
+        "SELECT p.*, c.full_name, c.email, c.phone, c.whatsapp, c.full_address
+         FROM {$pallets_table} p
+         LEFT JOIN {$customers_table} c ON p.customer_id = c.id
+         WHERE p.id = %d",
+        (int)$pallet_id
+    );
+
+    return $wpdb->get_row($sql, ARRAY_A);
+}
+
 
     public function get_pallet_by_token($token) {
         global $wpdb;
@@ -213,56 +234,56 @@ public function get_pallets($filter = 'all') {
 
     // ---------------- Save / Delete ----------------
 
-    public function save_pallet($data) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_pallets';
+public function save_pallet($data) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'storage_pallets';
 
-        $pallet_id   = isset($data['pallet_id']) ? (int)$data['pallet_id'] : 0;
-        $pallet_type = isset($data['pallet_type']) ? sanitize_text_field($data['pallet_type']) : 'EU';
-        $actual_h    = isset($data['actual_height']) ? (float)$data['actual_height'] : 0.0;
+    $pallet_id   = isset($data['pallet_id']) ? (int)$data['pallet_id'] : 0;
+    $pallet_type = isset($data['pallet_type']) ? sanitize_text_field($data['pallet_type']) : 'EU';
+    $actual_h    = isset($data['actual_height']) ? (float)$data['actual_height'] : 0.0;
 
-        // Always recompute based on current settings
-        $charged_h     = $this->compute_charged_height($actual_h, $pallet_type);
-        $monthly_price = $this->get_monthly_price_for($pallet_type, $charged_h);
-        $cubic_meters  = $this->calculate_cubic_meters($pallet_type, $charged_h);
+    // Always recompute based on current settings
+    $charged_h     = $this->compute_charged_height($actual_h, $pallet_type);
+    $monthly_price = $this->get_monthly_price_for($pallet_type, $charged_h);
+    $cubic_meters  = $this->calculate_cubic_meters($pallet_type, $charged_h);
 
-        $row = array(
-            'pallet_name'               => sanitize_text_field($data['pallet_name']),
-            'pallet_type'               => $pallet_type,
-            'actual_height'             => $actual_h ?: null,
-            'charged_height'            => $charged_h,
-            'cubic_meters'              => $cubic_meters,
-            'monthly_price'             => $monthly_price,
-            'period_from'               => isset($data['period_from'])  ? (sanitize_text_field($data['period_from'])  ?: null) : null,
-            'period_until'              => isset($data['period_until']) ? (sanitize_text_field($data['period_until']) ?: null) : null,
-            'payment_status'            => isset($data['payment_status']) ? sanitize_text_field($data['payment_status']) : 'paid',
-            'primary_contact_name'      => isset($data['primary_contact_name']) ? sanitize_text_field($data['primary_contact_name']) : '',
-            'primary_contact_phone'     => isset($data['primary_contact_phone']) ? sanitize_text_field($data['primary_contact_phone']) : '',
-            'primary_contact_whatsapp'  => isset($data['primary_contact_whatsapp']) ? sanitize_text_field($data['primary_contact_whatsapp']) : '',
-            'primary_contact_email'     => isset($data['primary_contact_email']) ? sanitize_email($data['primary_contact_email']) : '',
-            'secondary_contact_name'    => isset($data['secondary_contact_name']) ? sanitize_text_field($data['secondary_contact_name']) : '',
-            'secondary_contact_phone'   => isset($data['secondary_contact_phone']) ? sanitize_text_field($data['secondary_contact_phone']) : '',
-            'secondary_contact_whatsapp'=> isset($data['secondary_contact_whatsapp']) ? sanitize_text_field($data['secondary_contact_whatsapp']) : '',
-            'secondary_contact_email'   => isset($data['secondary_contact_email']) ? sanitize_email($data['secondary_contact_email']) : '',
-        );
+    $row = array(
+        'pallet_name'               => sanitize_text_field($data['pallet_name']),
+        'pallet_type'               => $pallet_type,
+        'actual_height'             => $actual_h ?: null,
+        'charged_height'            => $charged_h,
+        'cubic_meters'              => $cubic_meters,
+        'monthly_price'             => $monthly_price,
+        'period_from'               => isset($data['period_from'])  ? (sanitize_text_field($data['period_from'])  ?: null) : null,
+        'period_until'              => isset($data['period_until']) ? (sanitize_text_field($data['period_until']) ?: null) : null,
+        'payment_status'            => isset($data['payment_status']) ? sanitize_text_field($data['payment_status']) : 'paid',
+        'customer_id'               => isset($data['customer_id']) ? absint($data['customer_id']) : null, // <-- THE MISSING LINE
+        'primary_contact_name'      => isset($data['primary_contact_name']) ? sanitize_text_field($data['primary_contact_name']) : '',
+        'primary_contact_phone'     => isset($data['primary_contact_phone']) ? sanitize_text_field($data['primary_contact_phone']) : '',
+        'primary_contact_whatsapp'  => isset($data['primary_contact_whatsapp']) ? sanitize_text_field($data['primary_contact_whatsapp']) : '',
+        'primary_contact_email'     => isset($data['primary_contact_email']) ? sanitize_email($data['primary_contact_email']) : '',
+        'secondary_contact_name'    => isset($data['secondary_contact_name']) ? sanitize_text_field($data['secondary_contact_name']) : '',
+        'secondary_contact_phone'   => isset($data['secondary_contact_phone']) ? sanitize_text_field($data['secondary_contact_phone']) : '',
+        'secondary_contact_whatsapp'=> isset($data['secondary_contact_whatsapp']) ? sanitize_text_field($data['secondary_contact_whatsapp']) : '',
+        'secondary_contact_email'   => isset($data['secondary_contact_email']) ? sanitize_email($data['secondary_contact_email']) : '',
+    );
 
-        $format = array('%s','%s','%f','%f','%f','%f','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s');
+    $format = array('%s','%s','%f','%f','%f','%f','%s','%s','%s','%d','%s','%s','%s','%s','%s','%s','%s','%s');
 
-        if ($pallet_id > 0) {
-            $res = $wpdb->update($table_name, $row, array('id' => $pallet_id), $format, array('%d'));
-            if ($res !== false) {
-                $this->ensure_payment_token($pallet_id);
-            }
-            return $res;
-        } else {
-            $res = $wpdb->insert($table_name, $row, $format);
-            if ($res !== false) {
-                $this->ensure_payment_token((int)$wpdb->insert_id);
-            }
-            return $res;
+    if ($pallet_id > 0) {
+        $res = $wpdb->update($table_name, $row, array('id' => $pallet_id), $format, array('%d'));
+        if ($res !== false) {
+            $this->ensure_payment_token($pallet_id);
         }
+        return $res;
+    } else {
+        $res = $wpdb->insert($table_name, $row, $format);
+        if ($res !== false) {
+            $this->ensure_payment_token((int)$wpdb->insert_id);
+        }
+        return $res;
     }
-
+}
     public function delete_pallet($pallet_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'storage_pallets';

@@ -10,9 +10,11 @@ if (!defined('ABSPATH')) {
 class SUM_Pallet_Ajax_Handlers {
     
     private $pallet_database;
+    private $customer_database; // <-- ADDED
     
-    public function __construct($pallet_database) {
+    public function __construct($pallet_database, $customer_database) { // <-- MODIFIED
         $this->pallet_database = $pallet_database;
+        $this->customer_database = $customer_database; // <-- ADDED$customers = 
     }
     
     public function init() {
@@ -32,6 +34,10 @@ class SUM_Pallet_Ajax_Handlers {
         add_action('wp_ajax_sum_generate_pallet_name_frontend', array($this, 'generate_pallet_name_frontend'));
         add_action('wp_ajax_sum_send_pallet_invoice_frontend', array($this, 'send_pallet_invoice_frontend'));
         add_action('wp_ajax_sum_regenerate_pallet_pdf_frontend', array($this, 'regenerate_pallet_pdf_frontend'));
+        
+        // --- NEW CUSTOMER ACTIONS ---
+        add_action('wp_ajax_sum_get_customer_list_frontend', array($this, 'get_customer_list_frontend'));
+        add_action('wp_ajax_sum_save_customer_frontend', array($this, 'save_customer_frontend'));
     }
     
     public function get_pallets() {
@@ -433,32 +439,58 @@ private function normalize_date($value) {
         wp_send_json_success($pallets);
     }
     
-    public function save_pallet_frontend() {
-        if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
-            wp_send_json_error('Invalid nonce');
-            return;
-        }
-        
-        if (!$this->check_frontend_access()) {
-            wp_send_json_error('Access denied');
-            return;
-        }
-        
-        if (empty($_POST['pallet_name'])) {
-            wp_send_json_error('Pallet name is required');
-            return;
-        }
-        
-        $result = $this->pallet_database->save_pallet($_POST);
-        
-        if ($result !== false) {
-            $message = intval($_POST['pallet_id'] ?? 0) > 0 ? 'Pallet updated successfully' : 'Pallet created successfully';
-            wp_send_json_success($message);
-        } else {
-            wp_send_json_error('Failed to save pallet');
-        }
+public function save_pallet_frontend() {
+    if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
+        wp_send_json_error('Invalid nonce');
+        return;
     }
-    
+
+    if (!$this->check_frontend_access()) {
+        wp_send_json_error('Access denied');
+        return;
+    }
+
+    // --- Securely build the data array from $_POST ---
+    // This prevents mass-assignment and ensures we only use the fields we expect.
+    $data = [
+        'pallet_id'                => isset($_POST['pallet_id']) ? absint($_POST['pallet_id']) : 0,
+        'pallet_name'              => isset($_POST['pallet_name']) ? sanitize_text_field($_POST['pallet_name']) : '',
+        'pallet_type'              => isset($_POST['pallet_type']) ? sanitize_text_field($_POST['pallet_type']) : 'EU',
+        'actual_height'            => isset($_POST['actual_height']) ? floatval($_POST['actual_height']) : 0.0,
+        'period_from'              => isset($_POST['period_from']) ? sanitize_text_field($_POST['period_from']) : null,
+        'period_until'             => isset($_POST['period_until']) ? sanitize_text_field($_POST['period_until']) : null,
+        'payment_status'           => isset($_POST['payment_status']) ? sanitize_text_field($_POST['payment_status']) : 'paid',
+        'customer_id'              => isset($_POST['customer_id']) ? absint($_POST['customer_id']) : null, // Important for linking
+        'secondary_contact_name'   => isset($_POST['secondary_contact_name']) ? sanitize_text_field($_POST['secondary_contact_name']) : '',
+        'secondary_contact_phone'  => isset($_POST['secondary_contact_phone']) ? sanitize_text_field($_POST['secondary_contact_phone']) : '',
+        'secondary_contact_whatsapp' => isset($_POST['secondary_contact_whatsapp']) ? sanitize_text_field($_POST['secondary_contact_whatsapp']) : '',
+        'secondary_contact_email'  => isset($_POST['secondary_contact_email']) ? sanitize_email($_POST['secondary_contact_email']) : '',
+    ];
+
+    if (empty($data['pallet_name'])) {
+        wp_send_json_error('Pallet name is required');
+        return;
+    }
+
+    // Now, call the database method which performs the CRITICAL calculations.
+    // NOTE: Your 'save_pallet' method in class-pallet-database.php needs a small change
+    // to handle the new `customer_id`. I've included that fix below.
+    $result = $this->pallet_database->save_pallet($data);
+
+    if ($result !== false) {
+        $message = $data['pallet_id'] > 0 ? 'Pallet updated successfully' : 'Pallet created successfully';
+        wp_send_json_success($message);
+    } else {
+        // Provide a more specific error if possible, e.g., from $wpdb->last_error
+        global $wpdb;
+        $db_error = $wpdb->last_error;
+        $error_message = 'Failed to save pallet.';
+        if (!empty($db_error) && strpos(strtolower($db_error), 'duplicate entry') !== false) {
+            $error_message = 'Failed to save pallet. The pallet name might already exist.';
+        }
+        wp_send_json_error($error_message);
+    }
+}    
     public function delete_pallet_frontend() {
         if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
             wp_send_json_error('Invalid nonce');
@@ -580,6 +612,116 @@ private function normalize_date($value) {
         }
     }
     
+    
+    /**
+ * AJAX handler to get a customer's name by ID for the frontend.
+ */
+public function get_customer_name_frontend() {
+    if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+        return;
+    }
+
+    if (!$this->check_frontend_access()) {
+        wp_send_json_error(array('message' => 'Access denied'));
+        return;
+    }
+
+    if (!isset($_POST['customer_id']) || !is_numeric($_POST['customer_id'])) {
+        wp_send_json_error(array('message' => 'Invalid customer ID.'));
+        return;
+    }
+
+    $customer_id = intval($_POST['customer_id']);
+
+    // Use the correct customer database class
+    $customer_db = new SUM_Customer_Database(); 
+    $customer = $customer_db->get_customer($customer_id);
+
+    if ($customer && isset($customer['full_name'])) {
+        wp_send_json_success(array('customer_name' => $customer['full_name']));
+    } else {
+        wp_send_json_error(array('message' => 'Customer not found.'));
+    }
+}
+
+
+/**
+     * AJAX handler to get all customers for frontend dropdowns.
+     */
+    public function get_customer_list_frontend() {
+    if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+        return;
+    }
+
+    if (!$this->check_frontend_access()) {
+        wp_send_json_error(array('message' => 'Access denied'));
+        return;
+    }
+
+    try {
+        $customers = null;
+
+        // Prefer the central DB method if it exists
+        if ( is_object( $this->customer_database ) && method_exists( $this->customer_database, 'get_all_customers' ) ) {
+            $customers = $this->customer_database->get_all_customers();
+        } else {
+            // Fallback: query directly to avoid fatals if method is missing
+            global $wpdb;
+            $table = $wpdb->prefix . 'storage_customers';
+            // Adjust selected columns to match your schema; add phone/whatsapp if you¡Çve added them
+            $sql = "SELECT id, full_name, email, full_address, upload_id, utility_bill
+                    FROM {$table}
+                    ORDER BY id DESC";
+            $customers = $wpdb->get_results( $sql, ARRAY_A );
+        }
+
+        if ( is_array( $customers ) ) {
+            wp_send_json_success( $customers );
+            return;
+        }
+
+        wp_send_json_error( array( 'message' => 'Failed to retrieve customers.' ) );
+    } catch ( \Throwable $e ) {
+        error_log( '[SUM] get_customer_list_frontend fatal: ' . $e->getMessage() );
+        wp_send_json_error( array( 'message' => 'Server error while getting customers.' ) );
+    }
+}
+
+
+    /**
+     * AJAX handler to save a new customer from the frontend modal.
+     */
+    public function save_customer_frontend() {
+        if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
+            wp_send_json_error(array('message' => 'Invalid nonce'));
+        }
+
+        if (!$this->check_frontend_access()) {
+            wp_send_json_error(array('message' => 'Access denied'));
+        }
+
+        $customer_data = isset($_POST['customer_data']) ? (array) $_POST['customer_data'] : array();
+        
+        if (empty($customer_data['full_name']) || !is_email($customer_data['email'])) {
+            wp_send_json_error(array('message' => 'A valid full name and email are required.'));
+            return;
+        }
+        
+        // Use the class property instead of creating a new instance
+        $result = $this->customer_database->save_customer($customer_data);
+
+        if (isset($result['status']) && $result['status'] === 'success') {
+            wp_send_json_success(array(
+                'message'     => 'Customer saved successfully.',
+                'customer_id' => $result['id']
+            ));
+        } else {
+            wp_send_json_error(array('message' => $result['message'] ?? 'An unknown error occurred.'));
+        }
+    }
+    
     private function check_frontend_access() {
         if (!is_user_logged_in()) {
             return false;
@@ -607,4 +749,5 @@ private function normalize_date($value) {
         
         return false;
     }
+    
 }

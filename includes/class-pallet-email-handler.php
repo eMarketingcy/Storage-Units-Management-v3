@@ -98,31 +98,38 @@ class SUM_Pallet_Email_Handler {
         return $sent;
     }
     
+// in class-pallet-email-handler.php
+
 public function send_invoice_email($pallet) {
-    $customer_email = isset($pallet['primary_contact_email']) ? $pallet['primary_contact_email'] : '';
+    // --- UPDATED LOGIC TO GET CUSTOMER EMAIL ---
+    // Prioritize the email from the linked customer record.
+    $customer_email = isset($pallet['email']) ? trim($pallet['email']) : '';
+
+    // Fallback to the old primary_contact_email field for backward compatibility.
+    if (empty($customer_email) && isset($pallet['primary_contact_email'])) {
+        $customer_email = trim($pallet['primary_contact_email']);
+    }
+    // --- END OF UPDATED LOGIC ---
+    
     if (empty($customer_email)) {
+        // Log an error if no email can be found.
+        error_log('SUM Pallet Email Error: Could not find an email address for Pallet ID ' . ($pallet['id'] ?? 'N/A'));
         return false;
     }
 
-    // --- Pallet ID from the passed record (this was missing) ---
+    // Pallet ID from the passed record
     $pallet_id = isset($pallet['id']) ? (int)$pallet['id'] : 0;
     if ($pallet_id <= 0) {
         error_log('SUM Pallet Email: Missing or invalid pallet_id in send_invoice_email()');
         return false;
     }
 
-    // --- Payment page URL (prefer saved page, fallback to slug) ---
+    // Payment page URL
     $pay_page_id = (int) get_option('sum_payment_page_id');
     $payment_page_url = $pay_page_id ? get_permalink($pay_page_id) : home_url('/storage-payment/');
 
-    // --- Use a persistent DB token; optionally mirror to transient for legacy links ---
-    // (ensure_payment_token should create one if missing and return it)
+    // Use the persistent database token for the payment link
     $token = $this->pallet_database->ensure_payment_token($pallet_id);
-
-    // Optional (keeps older validator happy if it still checks transients too):
-    set_transient("sum_pallet_payment_token_{$pallet_id}", $token, 25 * DAY_IN_SECONDS);
-
-    // --- Build the working link ---
     $payment_link = add_query_arg(array(
         'pallet_id' => $pallet_id,
         'token'     => $token,
@@ -178,9 +185,12 @@ public function send_invoice_email($pallet) {
     ));
     if (!$company_name) $company_name = 'Self Storage Cyprus';
 
+    // --- UPDATED: Use the correct customer name field ---
+    $customer_name = isset($pallet['full_name']) ? $pallet['full_name'] : (isset($pallet['primary_contact_name']) ? $pallet['primary_contact_name'] : '');
+
     // Replace placeholders
     $placeholders = array(
-        '{customer_name}'  => isset($pallet['primary_contact_name']) ? $pallet['primary_contact_name'] : '',
+        '{customer_name}'  => $customer_name,
         '{unit_name}'      => isset($pallet['pallet_name']) ? $pallet['pallet_name'] : '',
         '{unit_size}'      => (isset($pallet['pallet_type']) ? $pallet['pallet_type'] : '') . ' Pallet (' . (isset($pallet['charged_height']) ? $pallet['charged_height'] : '') . 'm)',
         '{monthly_price}'  => number_format($monthly_price, 2),
@@ -205,7 +215,7 @@ public function send_invoice_email($pallet) {
     $headers = array('Content-Type: text/html; charset=UTF-8');
     $sent = wp_mail($customer_email, $subject, $body, $headers, $attachments);
 
-    // Also send to admin
+    // Also send to admin (This part is already correct)
     $admin_email = $wpdb->get_var($wpdb->prepare(
         "SELECT setting_value FROM $settings_table WHERE setting_key = %s", 'admin_email'
     ));
@@ -229,7 +239,7 @@ public function send_invoice_email($pallet) {
 
     return $sent;
 }
-    
+
     private function get_default_reminder_template() {
         return '<h2>Pallet Storage Expiration Reminder</h2>
 <p>Dear {customer_name},</p>
