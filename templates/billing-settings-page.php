@@ -15,11 +15,11 @@ if (!isset($database)) {
 }
 
 if (isset($_POST['sum_billing_settings_submit']) && check_admin_referer('sum_billing_settings_nonce')) {
-    $database->update_setting('auto_billing_enabled', !empty($_POST['auto_billing_enabled']) ? '1' : '0');
-    $database->update_setting('invoice_generation_days', absint($_POST['invoice_generation_days'] ?? 0));
-    $database->update_setting('first_reminder_days', absint($_POST['first_reminder_days'] ?? 7));
-    $database->update_setting('second_reminder_days', absint($_POST['second_reminder_days'] ?? 2));
-    $database->update_setting('billing_customers_only', !empty($_POST['billing_customers_only']) ? '1' : '0');
+    $database->save_setting('auto_billing_enabled', !empty($_POST['auto_billing_enabled']) ? '1' : '0');
+    $database->save_setting('invoice_generation_days', absint($_POST['invoice_generation_days'] ?? 0));
+    $database->save_setting('first_reminder_days', absint($_POST['first_reminder_days'] ?? 7));
+    $database->save_setting('second_reminder_days', absint($_POST['second_reminder_days'] ?? 2));
+    $database->save_setting('billing_customers_only', !empty($_POST['billing_customers_only']) ? '1' : '0');
 
     echo '<div class="notice notice-success"><p>Billing settings saved successfully!</p></div>';
 }
