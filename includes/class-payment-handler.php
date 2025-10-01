@@ -132,11 +132,11 @@ public function payment_form_shortcode($atts) {
         $untils = array();
 
         foreach ($rentals as $r) {
-            $total_monthly += (float)($r['monthly_price'] ?? 0);
-            $label = $r['name'] ?: ('#' . ($r['id'] ?? ''));
+            $total_monthly += (float)(isset($r['monthly_price']) ? $r['monthly_price'] : 0);
+            $label = $r['name'] ? $r['name'] : ('#' . (isset($r['id']) ? $r['id'] : ''));
             $names[] = $label;
 
-            if (($r['type'] ?? '') === 'unit') {
+            if ((isset($r['type']) ? $r['type'] : '') === 'unit') {
                 if (!empty($r['sqm'])) {
                     $sizes[] = rtrim(rtrim((string)(float)$r['sqm'], '0'), '.') . ' m²';
                 } else {
@@ -619,9 +619,9 @@ private function record_payment_in_history($entity_id, $is_customer, $is_pallet,
 
             $items_paid[] = array(
                 'type' => $rental['type'],
-                'name' => $rental['name'] ?? 'Unknown',
-                'period_until' => $fresh_until ?? ($rental['period_until'] ?? null),
-                'monthly_price' => $rental['monthly_price'] ?? 0
+                'name' => isset($rental['name']) ? $rental['name'] : 'Unknown',
+                'period_until' => $fresh_until ? $fresh_until : (isset($rental['period_until']) ? $rental['period_until'] : null),
+                'monthly_price' => isset($rental['monthly_price']) ? $rental['monthly_price'] : 0
             );
         }
 
@@ -633,7 +633,7 @@ private function record_payment_in_history($entity_id, $is_customer, $is_pallet,
             return false;
         }
 
-        $customer_name = $pallet['primary_contact_name'] ?? 'Pallet Customer';
+        $customer_name = isset($pallet['primary_contact_name']) ? $pallet['primary_contact_name'] : 'Pallet Customer';
         $customer_id_for_history = 0; // No customer ID for direct pallet payment
 
         // Get FRESH period_until
@@ -644,9 +644,9 @@ private function record_payment_in_history($entity_id, $is_customer, $is_pallet,
 
         $items_paid[] = array(
             'type' => 'pallet',
-            'name' => $pallet['pallet_name'] ?? 'Unknown',
-            'period_until' => $fresh_until ?? ($pallet['period_until'] ?? null),
-            'monthly_price' => $pallet['monthly_price'] ?? 0
+            'name' => isset($pallet['pallet_name']) ? $pallet['pallet_name'] : 'Unknown',
+            'period_until' => $fresh_until ? $fresh_until : (isset($pallet['period_until']) ? $pallet['period_until'] : null),
+            'monthly_price' => isset($pallet['monthly_price']) ? $pallet['monthly_price'] : 0
         );
 
     } else {
@@ -657,7 +657,7 @@ private function record_payment_in_history($entity_id, $is_customer, $is_pallet,
             return false;
         }
 
-        $customer_name = $unit['primary_contact_name'] ?? 'Unit Customer';
+        $customer_name = isset($unit['primary_contact_name']) ? $unit['primary_contact_name'] : 'Unit Customer';
         $customer_id_for_history = 0; // No customer ID for direct unit payment
 
         // Get FRESH period_until
@@ -668,9 +668,9 @@ private function record_payment_in_history($entity_id, $is_customer, $is_pallet,
 
         $items_paid[] = array(
             'type' => 'unit',
-            'name' => $unit['unit_name'] ?? 'Unknown',
-            'period_until' => $fresh_until ?? ($unit['period_until'] ?? null),
-            'monthly_price' => $unit['monthly_price'] ?? 0
+            'name' => isset($unit['unit_name']) ? $unit['unit_name'] : 'Unknown',
+            'period_until' => $fresh_until ? $fresh_until : (isset($unit['period_until']) ? $unit['period_until'] : null),
+            'monthly_price' => isset($unit['monthly_price']) ? $unit['monthly_price'] : 0
         );
     }
 
@@ -710,7 +710,7 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         if (!$customer || empty($customer['email'])) return;
 
         $customer_email = $customer['email'];
-        $customer_name = $customer['full_name'] ?? 'Customer';
+        $customer_name = isset($customer['full_name']) ? $customer['full_name'] : 'Customer';
         $entity_type = 'Customer';
 
     } elseif ($is_pallet) {
@@ -719,7 +719,7 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         if (!$pallet || empty($pallet['primary_contact_email'])) return;
 
         $customer_email = $pallet['primary_contact_email'];
-        $customer_name = $pallet['primary_contact_name'] ?? 'Customer';
+        $customer_name = isset($pallet['primary_contact_name']) ? $pallet['primary_contact_name'] : 'Customer';
         $entity_type = 'Pallet';
 
         // Get FRESH period_until from database (in case it was just extended)
@@ -732,8 +732,8 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
             'type' => 'pallet',
             'name' => $pallet['pallet_name'],
             'monthly_price' => $pallet['monthly_price'],
-            'period_from' => $pallet['period_from'] ?? null,
-            'period_until' => $fresh_period_until ?? ($pallet['period_until'] ?? null)
+            'period_from' => isset($pallet['period_from']) ? $pallet['period_from'] : null,
+            'period_until' => $fresh_period_until ? $fresh_period_until : (isset($pallet['period_until']) ? $pallet['period_until'] : null)
         ]];
 
     } else {
@@ -743,7 +743,7 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         if (!$unit || empty($unit['primary_contact_email'])) return;
 
         $customer_email = $unit['primary_contact_email'];
-        $customer_name = $unit['primary_contact_name'] ?? 'Customer';
+        $customer_name = isset($unit['primary_contact_name']) ? $unit['primary_contact_name'] : 'Customer';
         $entity_type = 'Unit';
 
         // Get FRESH period_until from database (in case it was just extended)
@@ -756,8 +756,8 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
             'type' => 'unit',
             'name' => $unit['unit_name'],
             'monthly_price' => $unit['monthly_price'],
-            'period_from' => $unit['period_from'] ?? null,
-            'period_until' => $fresh_period_until ?? ($unit['period_until'] ?? null)
+            'period_from' => isset($unit['period_from']) ? $unit['period_from'] : null,
+            'period_until' => $fresh_period_until ? $fresh_period_until : (isset($unit['period_until']) ? $unit['period_until'] : null)
         ]];
     }
 
@@ -777,7 +777,7 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
 
     foreach ($rentals as $rental) {
         $type = isset($rental['type']) ? ucfirst($rental['type']) : 'Item';
-        $name = $rental['name'] ?? '';
+        $name = isset($rental['name']) ? $rental['name'] : '';
         $price = isset($rental['monthly_price']) ? number_format((float)$rental['monthly_price'], 2) : '0.00';
         $rentals_html .= '<tr><td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($type . ' ' . $name) . '</td><td style="padding:12px;text-align:right;border-bottom:1px solid #e2e8f0;">' . $currency . ' ' . $price . '</td></tr>';
     }
@@ -951,7 +951,7 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
 
     foreach ($rentals as $rental) {
         $type = isset($rental['type']) ? ucfirst($rental['type']) : 'Item';
-        $name = $rental['name'] ?? '';
+        $name = isset($rental['name']) ? $rental['name'] : '';
         $monthly_price = isset($rental['monthly_price']) ? (float)$rental['monthly_price'] : 0.0;
 
         // Calculate billing if period is available
@@ -962,7 +962,7 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
         if (!empty($rental['period_from']) && !empty($rental['period_until'])) {
             try {
                 $billing = calculate_billing_months($rental['period_from'], $rental['period_until'], ['monthly_price' => $monthly_price]);
-                $line_amount = $billing['totals']['prorated_subtotal'] ?? $monthly_price;
+                $line_amount = isset($billing['totals']['prorated_subtotal']) ? $billing['totals']['prorated_subtotal'] : $monthly_price;
                 $period_text = date_i18n('M j, Y', strtotime($rental['period_from'])) . ' - ' . date_i18n('M j, Y', strtotime($rental['period_until']));
             } catch (Exception $e) {
                 $line_amount = $monthly_price;
