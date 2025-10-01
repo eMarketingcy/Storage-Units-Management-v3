@@ -7,7 +7,6 @@ jQuery(document).ready(function($) {
     function loadCustomers() {
         // Show loading state
         $('#frontend-customers-list').html('<div class="sum-customer-loading">Loading customers...</div>');
-        $('#frontend-loading-customers').show();
         $('#frontend-empty-customers').hide();
 
         $.ajax({
@@ -15,8 +14,6 @@ jQuery(document).ready(function($) {
             type: 'POST',
             data: { action: 'sum_get_customers_frontend', nonce: sum_customer_frontend_ajax.nonce },
             success: function(response) {
-                $('#frontend-loading-customers').hide();
-
                 if (response.success) {
                     customers = response.data;
                     renderCustomers();
@@ -27,7 +24,6 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function() {
-                $('#frontend-loading-customers').hide();
                 showError('Failed to load customers.');
                 $('#frontend-empty-customers').show();
             }
@@ -52,6 +48,7 @@ jQuery(document).ready(function($) {
 
         // Render based on current view mode
         if (currentViewMode === 'list') {
+            $listView.removeClass('sum-customers-grid-view').addClass('sum-customers-list-view');
             let listHtml = '<div class="sum-customer-list-header">';
             listHtml += '<div>Name</div>';
             listHtml += '<div>Contact</div>';
@@ -236,11 +233,11 @@ jQuery(document).ready(function($) {
             const customerId = $(this).closest('[data-customer-id]').data('customer-id');
             if (confirm('Delete this customer? This cannot be undone.')) deleteCustomer(customerId);
         });
-        $('.frontend-send-invoice-email').on('click', function() {
+        $('.frontend-send-customer-invoice-btn').on('click', function() {
             const customerId = $(this).closest('[data-customer-id]').data('customer-id');
-            if (confirm('Send a full invoice to this customer?')) sendFullInvoice(customerId);
+            sendCustomerInvoice(customerId);
         });
-         $('.frontend-generate-invoice-pdf').on('click', function() {
+        $('.frontend-generate-invoice-pdf').on('click', function() {
             const customerId = $(this).closest('[data-customer-id]').data('customer-id');
             generateFullInvoicePDF(customerId);
         });
@@ -316,98 +313,48 @@ jQuery(document).ready(function($) {
         });
     }
 
-    function sendFullInvoice(customerId) {
+    function sendCustomerInvoice(customerId) {
+        if (!customerId) {
+            showError('Missing customer ID');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to send a consolidated invoice to this customer?')) {
+            return;
+        }
+
         showSuccess('Sending invoice...');
+
         $.ajax({
             url: sum_customer_frontend_ajax.ajax_url,
             type: 'POST',
+            dataType: 'json',
             data: {
                 action: 'sum_send_customer_invoice_frontend',
                 nonce: sum_customer_frontend_ajax.nonce,
                 customer_id: customerId
             },
-            success: function(response) {
-                if (response.success) {
-                    showSuccess('Full invoice sent successfully!');
+            success: function (response) {
+                if (response && response.success) {
+                    const msg = (response.data && response.data.message) ? response.data.message : 'Invoice sent successfully!';
+                    showSuccess(msg);
                 } else {
-                    showError(response.data.message || 'Failed to send invoice.');
+                    const err = (response && response.data && response.data.message) ? response.data.message : 'Failed to send invoice';
+                    showError(err);
                 }
+            },
+            error: function (xhr) {
+                const err = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
+                    ? xhr.responseJSON.data.message
+                    : 'Failed to send invoice';
+                showError(err);
             }
         });
     }
-    
-  // Click binding for customer cards/buttons
-$(document).on('click', '.frontend-send-customer-invoice-btn', function () {
-  const customerId = $(this).data('customer-id');
-  sendCustomerInvoice(customerId);
-});
-
-function sendCustomerInvoice(customerId) {
-  if (!customerId) {
-    showError('Missing customer ID');
-    return;
-  }
-
-  if (!confirm('Are you sure you want to send a consolidated invoice to this customer?')) {
-    return;
-  }
-
-  // Optional: disable the button to prevent double-clicks
-  const $btn = $(`.frontend-send-customer-invoice-btn[data-customer-id="${customerId}"]`);
-  $btn.prop('disabled', true).addClass('is-loading');
-
-  $.ajax({
-    url: sum_frontend_ajax.ajax_url,
-    type: 'POST',
-    dataType: 'json',
-    data: {
-      action: 'sum_send_customer_invoice_frontend',
-      nonce: sum_frontend_ajax.nonce,
-      customer_id: customerId
-    },
-    success: function (response) {
-      if (response && response.success) {
-        // Prefer response.data.message if provided
-        const msg = (response.data && response.data.message) ? response.data.message : 'Invoice sent.';
-        showSuccess(msg);
-      } else {
-        const err = (response && response.data && response.data.message) ? response.data.message : 'Failed to send invoice';
-        showError(err);
-      }
-    },
-    error: function (xhr) {
-      const err = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
-        ? xhr.responseJSON.data.message
-        : 'Failed to send invoice';
-      showError(err);
-    },
-    complete: function () {
-      $btn.prop('disabled', false).removeClass('is-loading');
-    }
-  });
-}
 
     function generateFullInvoicePDF(customerId) {
         const downloadUrl = `${sum_customer_frontend_ajax.ajax_url}?action=sum_generate_customer_invoice_pdf&nonce=${sum_customer_frontend_ajax.nonce}&customer_id=${customerId}`;
         window.open(downloadUrl, '_blank');
-    }
-
-    function toggleView(mode) {
-        currentViewMode = mode;
-        const $wrapper = $('#frontend-customers-view-wrapper');
-        if (mode === 'list') {
-            $wrapper.removeClass('sum-view-mode-grid').addClass('sum-view-mode-list');
-            $('#frontend-customers-table').show();
-            $('#frontend-customers-grid').hide();
-            $('#frontend-view-list').addClass('active');
-            $('#frontend-view-grid').removeClass('active');
-        } else {
-            $wrapper.removeClass('sum-view-mode-list').addClass('sum-view-mode-grid');
-            $('#frontend-customers-grid').show();
-            $('#frontend-customers-table').hide();
-            $('#frontend-view-grid').addClass('active');
-            $('#frontend-view-list').removeClass('active');
-        }
     }
 
     function showSuccess(message) {
