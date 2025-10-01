@@ -285,9 +285,13 @@ public function payment_form_shortcode($atts) {
     return ob_get_clean();
 }    
 public function process_stripe_payment() {
+    error_log('SUM Payment: process_stripe_payment() called');
+    error_log('SUM Payment: POST data: ' . print_r($_POST, true));
+
     // Nonce (PHP 5.6 compatible)
     $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : '';
     if (!wp_verify_nonce($nonce, 'sum_payment_nonce')) {
+        error_log('SUM Payment ERROR: Security check failed');
         wp_send_json_error('Security check failed');
         return;
     }
@@ -301,6 +305,8 @@ public function process_stripe_payment() {
     $payment_token = isset($_POST['payment_token']) ? preg_replace('/[^A-Za-z0-9]/', '', (string)$_POST['payment_token']) : '';
     $amount        = isset($_POST['amount'])        ? intval($_POST['amount'])        : 0; // cents
 
+    error_log("SUM Payment: Parsed - stripe_token={$stripe_token}, unit_id={$unit_id}, pallet_id={$pallet_id}, customer_id={$customer_id}, payment_months={$payment_months}, amount={$amount}");
+
     // Determine entity type
     $is_customer = ($customer_id && !$unit_id && !$pallet_id);
     $is_pallet   = (!$customer_id && !$unit_id && $pallet_id);
@@ -313,9 +319,12 @@ public function process_stripe_payment() {
         if (empty($entity_id))     $missing[] = $is_customer ? 'customer_id' : ($is_pallet ? 'pallet_id' : 'unit_id');
         if (empty($payment_token)) $missing[] = 'payment_token';
         if ($amount <= 0)          $missing[] = 'amount';
+        error_log('SUM Payment ERROR: Missing data - ' . implode(', ', $missing));
         wp_send_json_error('Missing required payment information: ' . implode(', ', $missing));
         return;
     }
+
+    error_log("SUM Payment: Validation passed - entity_id={$entity_id}, is_customer=" . ($is_customer ? 'yes' : 'no') . ", is_pallet=" . ($is_pallet ? 'yes' : 'no'));
 
     // Verify token (DB token primary; transient fallback)
     if ($is_customer) {
