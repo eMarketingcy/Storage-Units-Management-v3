@@ -275,7 +275,7 @@ public function payment_form_shortcode($atts) {
         'vat_rate'               => $vat_enabled ? number_format($vat_rate, 2) : '0',
         'vat_amount'             => number_format($vat_amount, 2),
         'total_due'              => number_format($total_due, 2),
-        'total_due_raw'          => $total_due, // Raw float for JS calc
+        'total_due_raw'          => $subtotal, // SUBTOTAL (without VAT) for JS to calculate with
         'is_pallet'              => $is_pallet,
         'is_customer'            => $is_customer,
         'stripe_publishable_key' => $stripe_publishable_key,

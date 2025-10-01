@@ -38,11 +38,20 @@ $accent_color = '#10b981';  // Green (for confirmation/success elements, kept di
 
             <label for="payment-months" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e3a8a;">Payment Period:</label>
             <select name="payment_months" id="payment-months" style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #3b82f6; border-radius: 6px; background: white; cursor: pointer;">
-                <option value="1" selected>1 Month - €<?php echo $total_due; ?></option>
-                <option value="3">3 Months - €<?php echo number_format($total_due_raw * 3, 2); ?></option>
-                <option value="6">6 Months - €<?php echo number_format($total_due_raw * 6, 2); ?></option>
-                <option value="8">8 Months - €<?php echo number_format($total_due_raw * 8, 2); ?></option>
-                <option value="12">12 Months - €<?php echo number_format($total_due_raw * 12, 2); ?></option>
+                <?php
+                // Calculate prices with VAT for each option
+                $vat_multiplier = (floatval($vat_rate) > 0) ? (1 + floatval($vat_rate)/100) : 1;
+                $price_1  = $total_due_raw * 1 * $vat_multiplier;
+                $price_3  = $total_due_raw * 3 * $vat_multiplier;
+                $price_6  = $total_due_raw * 6 * $vat_multiplier;
+                $price_8  = $total_due_raw * 8 * $vat_multiplier;
+                $price_12 = $total_due_raw * 12 * $vat_multiplier;
+                ?>
+                <option value="1" selected>1 Month - €<?php echo number_format($price_1, 2); ?></option>
+                <option value="3">3 Months - €<?php echo number_format($price_3, 2); ?></option>
+                <option value="6">6 Months - €<?php echo number_format($price_6, 2); ?></option>
+                <option value="8">8 Months - €<?php echo number_format($price_8, 2); ?></option>
+                <option value="12">12 Months - €<?php echo number_format($price_12, 2); ?></option>
             </select>
 
             <div id="period-extension-info" style="margin-top: 15px; padding: 12px; background: white; border-radius: 4px; border: 1px solid #bfdbfe; display: none;">
@@ -128,7 +137,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var isCustomer      = <?php echo isset($is_customer) && $is_customer ? 'true' : 'false'; ?>;
   var entityId        = <?php echo json_encode($unit['id']); ?>;
   var phpPaymentToken = <?php echo json_encode($unit['payment_token']); ?>;
-  var phpAmountRaw    = <?php echo json_encode($total_due_raw); ?>; // Use raw float for JS calculation
+  var phpAmountRaw    = <?php echo json_encode($total_due_raw); ?>; // SUBTOTAL without VAT
+  var vatRate         = <?php echo json_encode(floatval($vat_rate)); ?>; // VAT rate (e.g., 19)
+  var vatEnabled      = <?php echo ($vat_rate && $vat_rate > 0) ? 'true' : 'false'; ?>;
   var wpNonce         = '<?php echo $payment_nonce; ?>';
   var ajaxUrl         = '<?php echo $ajax_url; ?>';
   var pubKey          = '<?php echo esc_js($stripe_publishable_key); ?>';
@@ -136,7 +147,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Payment period tracking
   var selectedMonths = 1;
-  var currentAmount = phpAmountRaw;
+  var currentSubtotal = phpAmountRaw; // Subtotal without VAT
+  var currentAmount = vatEnabled ? phpAmountRaw * (1 + vatRate/100) : phpAmountRaw; // Total with VAT
 
   // --- Stripe lazy init ---
   var stripe, elements, cardElement, submitBound = false;
@@ -304,14 +316,17 @@ document.addEventListener('DOMContentLoaded', function() {
   if (paymentMonthsSelect) {
     paymentMonthsSelect.addEventListener('change', function() {
       selectedMonths = parseInt(this.value) || 1;
-      currentAmount = phpAmountRaw * selectedMonths;
 
-      // Update displayed amount
+      // Calculate: (subtotal × months) + VAT
+      currentSubtotal = phpAmountRaw * selectedMonths;
+      currentAmount = vatEnabled ? currentSubtotal * (1 + vatRate/100) : currentSubtotal;
+
+      // Update displayed amount (with VAT)
       if (amountDisplay) {
         amountDisplay.textContent = '€' + currentAmount.toFixed(2);
       }
 
-      // Update button text
+      // Update button text (with VAT)
       if (buttonText) {
         buttonText.textContent = 'Pay €' + currentAmount.toFixed(2);
       }

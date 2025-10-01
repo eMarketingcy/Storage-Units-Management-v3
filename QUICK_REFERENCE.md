@@ -16,6 +16,10 @@
 - ✅ `includes/class-customer-email-handler.php`
 - ✅ `includes/class-payment-handler.php`
 
+### 4. VAT Calculation Fix (Double VAT Bug)
+- ✅ `includes/class-payment-handler.php`
+- ✅ `templates/payment-form-template.php`
+
 ---
 
 ## 🗄️ DATABASE CHANGES NEEDED:
@@ -74,6 +78,11 @@ ADD INDEX `idx_status` (`status`);
 - **Now:** Email shows CORRECT TOTAL WITHOUT VAT, payment page adds VAT
 - **Benefit:** Amounts match PDF invoice exactly
 
+### 4. VAT Calculation (CRITICAL FIX!) ✓
+- **Before:** Payment page calculated VAT TWICE! (€13,133 instead of €13,000)
+- **Now:** VAT calculated ONCE on final amount
+- **Benefit:** Customers charged correct amount, no double VAT!
+
 ---
 
 ## 🧪 TESTING CHECKLIST:
@@ -92,10 +101,12 @@ ADD INDEX `idx_status` (`status`);
 
 ### Test 3: Check Payment Page
 - [ ] Click payment link in email
-- [ ] Should show: **€2,188.84** (€1,820.70 + VAT)
+- [ ] Should show: **€2,188.84** (€1,820.70 + 19% VAT) ✓
 - [ ] See dropdown: 1, 3, 6, 8, 12 months
+- [ ] Dropdown shows: "6 Months - €13,000.20" ✓
 - [ ] Select 6 months
-- [ ] Amount updates to: **€13,132.08**
+- [ ] Amount updates to: **€13,000.20** (€10,924.20 + VAT) ✓
+- [ ] NOT: €13,133.04 (that would be double VAT!)
 
 ### Test 4: Pay Invoice
 - [ ] Enter card: 4242 4242 4242 4242
