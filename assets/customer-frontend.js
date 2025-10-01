@@ -324,38 +324,38 @@ function sendCustomerInvoice(customerId) {
     }
 
     function showSuccess(message) {
-        // Create a modern toast notification for success
+        // Create a modern toast notification for success (matching pallet style)
         const toast = jQuery(`
-            <div class="sum-frontend-toast sum-frontend-toast-success">
-                <div class="sum-frontend-toast-icon">✅</div>
-                <div class="sum-frontend-toast-message">${message}</div>
+            <div class="sum-customer-toast sum-customer-toast-success">
+                <div class="sum-customer-toast-icon">✅</div>
+                <div class="sum-customer-toast-message">${message}</div>
             </div>
         `);
-        
+
         jQuery('body').append(toast);
-        
-        setTimeout(() => { toast.addClass('sum-frontend-toast-show'); }, 100);
-        setTimeout(() => { 
-            toast.removeClass('sum-frontend-toast-show'); 
-            setTimeout(() => toast.remove(), 300); 
+
+        setTimeout(() => { toast.addClass('sum-customer-toast-show'); }, 100);
+        setTimeout(() => {
+            toast.removeClass('sum-customer-toast-show');
+            setTimeout(() => toast.remove(), 300);
         }, 3000);
     }
-    
+
     function showError(message) {
-        // Create a modern toast notification for error
+        // Create a modern toast notification for error (matching pallet style)
         const toast = jQuery(`
-            <div class="sum-frontend-toast sum-frontend-toast-error">
-                <div class="sum-frontend-toast-icon">❌</div>
-                <div class="sum-frontend-toast-message">${message}</div>
+            <div class="sum-customer-toast sum-customer-toast-error">
+                <div class="sum-customer-toast-icon">❌</div>
+                <div class="sum-customer-toast-message">${message}</div>
             </div>
         `);
-        
+
         jQuery('body').append(toast);
-        
-        setTimeout(() => { toast.addClass('sum-frontend-toast-show'); }, 100);
-        setTimeout(() => { 
-            toast.removeClass('sum-frontend-toast-show'); 
-            setTimeout(() => toast.remove(), 300); 
+
+        setTimeout(() => { toast.addClass('sum-customer-toast-show'); }, 100);
+        setTimeout(() => {
+            toast.removeClass('sum-customer-toast-show');
+            setTimeout(() => toast.remove(), 300);
         }, 5000);
     }
 
