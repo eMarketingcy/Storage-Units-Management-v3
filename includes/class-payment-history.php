@@ -26,17 +26,21 @@ class SUM_Payment_History {
             id bigint(20) NOT NULL AUTO_INCREMENT,
             customer_id bigint(20) NOT NULL,
             customer_name varchar(255) NOT NULL,
-            transaction_id varchar(255) NOT NULL,
-            amount decimal(10,2) NOT NULL,
+            payment_token varchar(255) DEFAULT NULL,
+            transaction_id varchar(255) DEFAULT NULL,
+            amount decimal(10,2) DEFAULT NULL,
             currency varchar(10) DEFAULT 'EUR',
             payment_months int(11) DEFAULT 1,
             items_paid text NOT NULL,
-            payment_date datetime NOT NULL,
+            payment_date datetime DEFAULT NULL,
+            status varchar(20) DEFAULT 'pending',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY customer_id (customer_id),
+            KEY payment_token (payment_token),
             KEY transaction_id (transaction_id),
-            KEY payment_date (payment_date)
+            KEY payment_date (payment_date),
+            KEY status (status)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -44,7 +48,87 @@ class SUM_Payment_History {
     }
 
     /**
-     * Record a payment in history
+     * Create pending payment record when invoice is sent
+     * This pre-creates the payment history with items and expected until dates
+     *
+     * @param int $customer_id Customer ID
+     * @param string $customer_name Customer full name
+     * @param string $payment_token Unique payment token for this invoice
+     * @param string $currency Currency code
+     * @param int $payment_months Number of months to be paid
+     * @param array $items_paid Array of items (units/pallets) with until dates
+     * @return int|false Payment history ID or false on failure
+     */
+    public function create_pending_payment($customer_id, $customer_name, $payment_token, $currency = 'EUR', $payment_months = 1, $items_paid = array()) {
+        global $wpdb;
+
+        $items_json = json_encode($items_paid);
+
+        $result = $wpdb->insert(
+            $this->table_name,
+            array(
+                'customer_id' => $customer_id,
+                'customer_name' => $customer_name,
+                'payment_token' => $payment_token,
+                'currency' => $currency,
+                'payment_months' => $payment_months,
+                'items_paid' => $items_json,
+                'status' => 'pending'
+            ),
+            array('%d', '%s', '%s', '%s', '%d', '%s', '%s')
+        );
+
+        if ($result === false) {
+            error_log("SUM Payment History: Failed to create pending payment - " . $wpdb->last_error);
+            return false;
+        }
+
+        $history_id = $wpdb->insert_id;
+        error_log("SUM Payment History: Created pending payment record ID {$history_id} with token {$payment_token}");
+        return $history_id;
+    }
+
+    /**
+     * Complete a pending payment after successful payment
+     * Updates the existing record with transaction details
+     *
+     * @param string $payment_token Payment token from invoice
+     * @param string $transaction_id Stripe transaction ID
+     * @param float $amount Amount paid
+     * @return bool True on success, false on failure
+     */
+    public function complete_payment($payment_token, $transaction_id, $amount) {
+        global $wpdb;
+
+        $result = $wpdb->update(
+            $this->table_name,
+            array(
+                'transaction_id' => $transaction_id,
+                'amount' => $amount,
+                'payment_date' => current_time('mysql'),
+                'status' => 'completed'
+            ),
+            array('payment_token' => $payment_token, 'status' => 'pending'),
+            array('%s', '%f', '%s', '%s'),
+            array('%s', '%s')
+        );
+
+        if ($result === false) {
+            error_log("SUM Payment History: Failed to complete payment for token {$payment_token} - " . $wpdb->last_error);
+            return false;
+        }
+
+        if ($result === 0) {
+            error_log("SUM Payment History: No pending payment found for token {$payment_token}");
+            return false;
+        }
+
+        error_log("SUM Payment History: Completed payment for token {$payment_token}, transaction {$transaction_id}");
+        return true;
+    }
+
+    /**
+     * Record a payment in history (LEGACY - for direct payments)
      *
      * @param int $customer_id Customer ID
      * @param string $customer_name Customer full name
@@ -70,9 +154,10 @@ class SUM_Payment_History {
                 'currency' => $currency,
                 'payment_months' => $payment_months,
                 'items_paid' => $items_json,
-                'payment_date' => current_time('mysql')
+                'payment_date' => current_time('mysql'),
+                'status' => 'completed'
             ),
-            array('%d', '%s', '%s', '%f', '%s', '%d', '%s', '%s')
+            array('%d', '%s', '%s', '%f', '%s', '%d', '%s', '%s', '%s')
         );
 
         if ($result === false) {

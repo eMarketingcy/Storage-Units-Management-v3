@@ -163,6 +163,12 @@ public function send_invoice_email($unit) {
 
     error_log("SUM: Payment link generated (unit {$unit_id}): {$payment_link}");
 
+    // Create pending payment history record
+    if (!class_exists('SUM_Payment_History')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
+    }
+    $payment_history = new SUM_Payment_History();
+
     $subject = $this->database->get_setting('invoice_email_subject', 'Storage Unit Invoice');
     $body_template = $this->database->get_setting('invoice_email_body', $this->get_default_invoice_template());
 
@@ -223,6 +229,34 @@ public function send_invoice_email($unit) {
     if ($pdf_content && file_exists($pdf_content)) {
         $attachments[] = $pdf_content;
     }
+
+    // Create pending payment history record BEFORE sending invoice
+    $currency = strtoupper($this->database->get_setting('currency', 'EUR'));
+    $customer_name = isset($unit['primary_contact_name']) ? $unit['primary_contact_name'] : 'Unknown Customer';
+    $customer_id = isset($unit['customer_id']) ? intval($unit['customer_id']) : 0;
+
+    // Calculate expected until date after payment
+    $expected_until = isset($unit['period_until']) ? $unit['period_until'] : date('Y-m-d');
+    if ($months_due > 0) {
+        $expected_until = date('Y-m-d', strtotime($expected_until . ' +' . $months_due . ' months'));
+    }
+
+    $items_paid = array(array(
+        'type' => 'unit',
+        'name' => isset($unit['unit_name']) ? $unit['unit_name'] : 'Unknown',
+        'period_until' => $expected_until,
+        'monthly_price' => $monthly_price
+    ));
+
+    $payment_history->create_pending_payment(
+        $customer_id,
+        $customer_name,
+        $token,
+        $currency,
+        $months_due,
+        $items_paid
+    );
+    error_log("SUM: Created pending payment history for unit {$unit_id}, token {$token}");
 
     // Send email
     $headers = array('Content-Type: text/html; charset=UTF-8');

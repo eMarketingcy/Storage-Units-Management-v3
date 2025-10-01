@@ -600,10 +600,14 @@ public function process_stripe_payment() {
         error_log("SUM Payment: Single month payment (payment_months={$payment_months}), no period extension needed");
     }
 
-    // Record payment in history for ALL payment types
-    error_log('SUM Payment: Recording payment in history - transaction_id=' . $result['id']);
-    $history_result = $this->record_payment_in_history($entity_id, $is_customer, $is_pallet, $result['id'], $amount / 100, $payment_months);
-    error_log('SUM Payment: History recorded - result=' . ($history_result ? 'success' : 'failed'));
+    // Complete the pending payment history record
+    error_log('SUM Payment: Completing payment history for token=' . $payment_token);
+    if (!class_exists('SUM_Payment_History')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
+    }
+    $history = new SUM_Payment_History();
+    $history_result = $history->complete_payment($payment_token, $result['id'], $amount / 100);
+    error_log('SUM Payment: History completed - result=' . ($history_result ? 'success' : 'failed'));
 
     // Send payment confirmation email with receipt
     error_log('SUM Payment: Sending receipt email');
