@@ -566,7 +566,7 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
     }
 
     // Generate receipt PDF
-    $pdf_path = $this->generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
+    $pdf_path = $this->generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name, $payment_months);
 
     // Get email settings
     $company_name = $this->database->get_setting('company_name', 'Self Storage Cyprus');
@@ -642,8 +642,27 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
                                 </div>
 
                                 <h3 style="margin:24px 0 8px;font-size:16px;color:#1e293b;">Items Paid</h3>
-                                ' . $rentals_html . '
+                                ' . $rentals_html;
 
+    // Add advance payment info to email if payment_months > 1
+    if ($payment_months > 1) {
+        $new_period_until = '—';
+        if (!empty($rentals) && isset($rentals[0]['period_until'])) {
+            $current_until = $rentals[0]['period_until'];
+            $new_date = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
+            $new_period_until = date_i18n('F j, Y', strtotime($new_date));
+        }
+
+        $body .= '
+                                <div style="background:#e0f2fe;border-left:5px solid #3b82f6;padding:20px;border-radius:8px;margin:24px 0;">
+                                    <h3 style="margin:0 0 12px;color:#1e40af;font-size:16px;">📅 Advance Payment Confirmation</h3>
+                                    <p style="margin:0 0 8px;color:#1e3a8a;font-size:15px;"><strong>Payment Period:</strong> ' . esc_html($payment_months) . ' month(s)</p>
+                                    <p style="margin:0 0 8px;color:#1e3a8a;font-size:15px;"><strong>Paid Until:</strong> ' . esc_html($new_period_until) . '</p>
+                                    <p style="margin:12px 0 0;color:#475569;font-size:14px;">✓ Your rental period has been extended automatically for all items.</p>
+                                </div>';
+    }
+
+    $body .= '
                                 <p style="margin:24px 0 0;font-size:14px;color:#64748b;line-height:1.6;">
                                     If you have any questions about this payment, please contact us at ' . esc_html($company_email) . '.
                                 </p>
@@ -688,15 +707,15 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
 /**
  * Generate receipt PDF for successful payment
  */
-private function generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
+private function generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name, $payment_months = 1) {
     // For all entity types, use the comprehensive receipt generator
-    return $this->generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
+    return $this->generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name, $payment_months);
 }
 
 /**
  * Generate simple receipt PDF for units and pallets
  */
-private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
+private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name, $payment_months = 1) {
     global $wpdb;
 
     $upload_dir = wp_upload_dir();
