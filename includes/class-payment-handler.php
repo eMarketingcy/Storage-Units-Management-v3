@@ -297,6 +297,7 @@ public function process_stripe_payment() {
     $unit_id       = isset($_POST['unit_id'])       ? absint($_POST['unit_id'])       : 0;
     $pallet_id     = isset($_POST['pallet_id'])     ? absint($_POST['pallet_id'])     : 0;
     $customer_id   = isset($_POST['customer_id'])   ? absint($_POST['customer_id'])   : 0;
+    $payment_months = isset($_POST['payment_months']) ? absint($_POST['payment_months']) : 1;
     $payment_token = isset($_POST['payment_token']) ? preg_replace('/[^A-Za-z0-9]/', '', (string)$_POST['payment_token']) : '';
     $amount        = isset($_POST['amount'])        ? intval($_POST['amount'])        : 0; // cents
 
@@ -491,8 +492,17 @@ public function process_stripe_payment() {
         wp_send_json_error('Payment processed but failed to update records'); return;
     }
 
+    // Extend rental periods for advance payments (customers only)
+    if ($payment_months > 1 && $is_customer) {
+        if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-billing-automation.php';
+            $billing = new SUM_Billing_Automation();
+            $billing->update_rental_periods_after_payment($entity_id, $payment_months);
+        }
+    }
+
     // Send payment confirmation email with receipt
-    $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount);
+    $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount, $payment_months);
 
     wp_send_json_success('Payment processed successfully');
 }
@@ -500,7 +510,7 @@ public function process_stripe_payment() {
 /**
  * Send payment receipt email to customer and admin after successful payment
  */
-private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $stripe_result, $amount_cents) {
+private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $stripe_result, $amount_cents, $payment_months = 1) {
     global $wpdb;
 
     $amount = $amount_cents / 100;
@@ -828,8 +838,28 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
         <div style="background:#f8fafc;padding:24px;border-radius:8px;margin:24px 0;text-align:center;">
             <p style="margin:0 0 8px;color:#64748b;font-size:14px;">Total Amount Paid</p>
             <p style="margin:0;color:#10b981;font-size:32px;font-weight:700;">' . $currency . ' ' . number_format($amount, 2) . '</p>
-        </div>
+        </div>';
 
+    // Add payment period information if paying for multiple months
+    if ($payment_months > 1) {
+        // Calculate new period_until date for display
+        $new_period_until = '—';
+        if (!empty($rentals) && isset($rentals[0]['period_until'])) {
+            $current_until = $rentals[0]['period_until'];
+            $new_date = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
+            $new_period_until = date_i18n('F j, Y', strtotime($new_date));
+        }
+
+        $html .= '
+        <div style="background:#e0f2fe;padding:20px;border-radius:8px;margin:24px 0;border-left:5px solid #3b82f6;">
+            <h3 style="margin:0 0 12px;color:#1e40af;font-size:16px;">📅 Advance Payment</h3>
+            <p style="margin:0 0 8px;color:#1e3a8a;"><strong>Payment Period:</strong> ' . esc_html($payment_months) . ' month(s)</p>
+            <p style="margin:0;color:#1e3a8a;"><strong>Paid Until:</strong> ' . esc_html($new_period_until) . '</p>
+            <p style="margin:12px 0 0;color:#475569;font-size:13px;">✓ Your rental period has been extended automatically.</p>
+        </div>';
+    }
+
+    $html .= '
         <h3 class="section-title">Payment History</h3>
         <table>
             <thead>

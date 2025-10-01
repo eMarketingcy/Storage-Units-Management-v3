@@ -27,10 +27,32 @@ $accent_color = '#10b981';  // Green (for confirmation/success elements, kept di
 
         <section class="sum-amount-section" style="border-left: 5px solid <?php echo $primary_color; ?>; background-color: #fff7ed; padding: 20px; border-radius: 6px; margin: 25px 0;">
             <p class="sum-label" style="margin: 0; font-size: 14px; color: #64748b;">TOTAL AMOUNT DUE</p>
-            <p class="sum-amount" style="margin: 5px 0 0 0; font-size: 36px; font-weight: 800; line-height: 1.2; color: <?php echo $primary_color; ?>;">
+            <p class="sum-amount" id="sum-payment-amount-display" style="margin: 5px 0 0 0; font-size: 36px; font-weight: 800; line-height: 1.2; color: <?php echo $primary_color; ?>;">
                 €<?php echo $total_due; ?>
             </p>
         </section>
+
+        <?php if (isset($is_customer) && $is_customer): ?>
+        <section class="sum-payment-period-section" style="background: #f0f9ff; padding: 20px; border-radius: 6px; margin: 25px 0; border-left: 5px solid #3b82f6;">
+            <h3 style="margin: 0 0 10px; font-size: 16px; font-weight: 600; color: #1e40af;">💰 Pay in Advance & Save</h3>
+            <p style="margin: 0 0 15px; font-size: 14px; color: #64748b;">Select how many months you'd like to pay for. Your rental period will be extended automatically.</p>
+
+            <label for="payment-months" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e3a8a;">Payment Period:</label>
+            <select name="payment_months" id="payment-months" style="width: 100%; padding: 12px; font-size: 16px; border: 2px solid #3b82f6; border-radius: 6px; background: white; cursor: pointer;">
+                <option value="1" selected>1 Month - €<?php echo $total_due; ?></option>
+                <option value="3">3 Months - €<?php echo number_format($total_due_raw * 3, 2); ?></option>
+                <option value="6">6 Months - €<?php echo number_format($total_due_raw * 6, 2); ?></option>
+                <option value="8">8 Months - €<?php echo number_format($total_due_raw * 8, 2); ?></option>
+                <option value="12">12 Months - €<?php echo number_format($total_due_raw * 12, 2); ?></option>
+            </select>
+
+            <div id="period-extension-info" style="margin-top: 15px; padding: 12px; background: white; border-radius: 4px; border: 1px solid #bfdbfe; display: none;">
+                <p style="margin: 0; font-size: 13px; color: #1e40af;">
+                    ✓ Your rental period will be extended to: <strong id="new-period-until">—</strong>
+                </p>
+            </div>
+        </section>
+        <?php endif; ?>
 
         <section class="sum-details-section" style="border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px;">
             <h2 class="sum-section-title" style="font-size: 18px; font-weight: 600; color: #333; margin-top: 0; margin-bottom: 15px;">Invoice Details</h2>
@@ -112,6 +134,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var wpNonce         = '<?php echo $payment_nonce; ?>';
   var ajaxUrl         = '<?php echo $ajax_url; ?>';
   var pubKey          = '<?php echo esc_js($stripe_publishable_key); ?>';
+  var currentPeriodUntil = '<?php echo isset($unit['period_until']) ? esc_js($unit['period_until']) : ''; ?>';
+
+  // Payment period tracking
+  var selectedMonths = 1;
+  var currentAmount = phpAmountRaw;
 
   // --- Stripe lazy init ---
   var stripe, elements, cardElement, submitBound = false;
@@ -159,8 +186,9 @@ document.addEventListener('DOMContentLoaded', function() {
             action: 'sum_process_stripe_payment',
             stripe_token: res.token.id,
             payment_token: phpPaymentToken,
-            amount: Math.round(phpAmountRaw * 100), // Convert Euros to cents
-            nonce: wpNonce
+            amount: Math.round(currentAmount * 100), // Convert Euros to cents
+            nonce: wpNonce,
+            payment_months: selectedMonths
           };
           if (isCustomer) {
             data.customer_id = entityId;
@@ -265,6 +293,47 @@ document.addEventListener('DOMContentLoaded', function() {
       resultBox.style.backgroundColor = '#f8d7da';
       resultBox.style.color = '#842029';
       resultBox.style.border = '1px solid #f5c2c7';
+    }
+  }
+
+  // --- Payment months selector for customers ---
+  if (isCustomer) {
+    var paymentMonthsSelect = document.getElementById('payment-months');
+    var amountDisplay = document.getElementById('sum-payment-amount-display');
+    var extensionInfo = document.getElementById('period-extension-info');
+    var newPeriodDisplay = document.getElementById('new-period-until');
+    var buttonText = document.getElementById('button-text');
+
+    if (paymentMonthsSelect) {
+      paymentMonthsSelect.addEventListener('change', function() {
+        selectedMonths = parseInt(this.value) || 1;
+        currentAmount = phpAmountRaw * selectedMonths;
+
+        // Update displayed amount
+        if (amountDisplay) {
+          amountDisplay.textContent = '€' + currentAmount.toFixed(2);
+        }
+
+        // Update button text
+        if (buttonText) {
+          buttonText.textContent = 'Pay €' + currentAmount.toFixed(2);
+        }
+
+        // Calculate and show new period_until
+        if (selectedMonths > 1 && currentPeriodUntil && extensionInfo && newPeriodDisplay) {
+          var currentDate = new Date(currentPeriodUntil);
+          if (!isNaN(currentDate.getTime())) {
+            var newDate = new Date(currentDate);
+            newDate.setMonth(newDate.getMonth() + selectedMonths);
+            var formattedDate = newDate.toISOString().split('T')[0];
+
+            newPeriodDisplay.textContent = formattedDate;
+            extensionInfo.style.display = 'block';
+          }
+        } else if (extensionInfo) {
+          extensionInfo.style.display = 'none';
+        }
+      });
     }
   }
 });
