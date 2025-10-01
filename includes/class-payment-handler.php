@@ -492,12 +492,45 @@ public function process_stripe_payment() {
         wp_send_json_error('Payment processed but failed to update records'); return;
     }
 
-    // Extend rental periods for advance payments (customers only)
-    if ($payment_months > 1 && $is_customer) {
-        if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
-            require_once SUM_PLUGIN_PATH . 'includes/class-billing-automation.php';
-            $billing = new SUM_Billing_Automation();
-            $billing->update_rental_periods_after_payment($entity_id, $payment_months);
+    // Extend rental periods for advance payments (ALL payment types)
+    if ($payment_months > 1) {
+        if ($is_customer) {
+            // Customer payment - extend all their units/pallets
+            if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
+                require_once SUM_PLUGIN_PATH . 'includes/class-billing-automation.php';
+                $billing = new SUM_Billing_Automation();
+                $billing->update_rental_periods_after_payment($entity_id, $payment_months);
+            }
+        } elseif ($is_pallet) {
+            // Single pallet payment - extend this pallet only
+            $pallet = $this->pallet_db->get_pallet($entity_id);
+            if ($pallet && !empty($pallet['period_until'])) {
+                $current_until = $pallet['period_until'];
+                $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
+                $wpdb->update(
+                    $wpdb->prefix . 'storage_pallets',
+                    array('period_until' => $new_until),
+                    array('id' => $entity_id),
+                    array('%s'),
+                    array('%d')
+                );
+                error_log("SUM Payment: Extended pallet {$entity_id} from {$current_until} to {$new_until}");
+            }
+        } else {
+            // Single unit payment - extend this unit only
+            $unit = $this->database->get_unit($entity_id);
+            if ($unit && !empty($unit['period_until'])) {
+                $current_until = $unit['period_until'];
+                $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
+                $wpdb->update(
+                    $wpdb->prefix . 'storage_units',
+                    array('period_until' => $new_until),
+                    array('id' => $entity_id),
+                    array('%s'),
+                    array('%d')
+                );
+                error_log("SUM Payment: Extended unit {$entity_id} from {$current_until} to {$new_until}");
+            }
         }
     }
 
@@ -592,27 +625,43 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         $customer_email = $pallet['primary_contact_email'];
         $customer_name = $pallet['primary_contact_name'] ?? 'Customer';
         $entity_type = 'Pallet';
+
+        // Get FRESH period_until from database (in case it was just extended)
+        $fresh_period_until = $wpdb->get_var($wpdb->prepare(
+            "SELECT period_until FROM {$wpdb->prefix}storage_pallets WHERE id = %d",
+            $entity_id
+        ));
+
         $rentals = [[
             'type' => 'pallet',
             'name' => $pallet['pallet_name'],
             'monthly_price' => $pallet['monthly_price'],
             'period_from' => $pallet['period_from'] ?? null,
-            'period_until' => $pallet['period_until'] ?? null
+            'period_until' => $fresh_period_until ?? ($pallet['period_until'] ?? null)
         ]];
 
     } else {
+        // Fetch unit data (clear any cache first)
+        wp_cache_delete($entity_id, 'storage_units');
         $unit = $this->database->get_unit($entity_id);
         if (!$unit || empty($unit['primary_contact_email'])) return;
 
         $customer_email = $unit['primary_contact_email'];
         $customer_name = $unit['primary_contact_name'] ?? 'Customer';
         $entity_type = 'Unit';
+
+        // Get FRESH period_until from database (in case it was just extended)
+        $fresh_period_until = $wpdb->get_var($wpdb->prepare(
+            "SELECT period_until FROM {$wpdb->prefix}storage_units WHERE id = %d",
+            $entity_id
+        ));
+
         $rentals = [[
             'type' => 'unit',
             'name' => $unit['unit_name'],
             'monthly_price' => $unit['monthly_price'],
             'period_from' => $unit['period_from'] ?? null,
-            'period_until' => $unit['period_until'] ?? null
+            'period_until' => $fresh_period_until ?? ($unit['period_until'] ?? null)
         ]];
     }
 

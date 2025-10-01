@@ -508,6 +508,15 @@ public function init() {
 
         add_submenu_page(
             'storage-units',
+            'Payment History',
+            'Payment History',
+            'manage_options',
+            'sum-payment-history',
+            array($this, 'payment_history_page')
+        );
+
+        add_submenu_page(
+            'storage-units',
             'Pallet Storage',
             'Pallet Storage',
             'manage_options',
@@ -664,6 +673,13 @@ public function frontend_enqueue_scripts() {
         }
         $database = $this->database;
         include SUM_PLUGIN_PATH . 'templates/billing-settings-page.php';
+    }
+
+    public function payment_history_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        include SUM_PLUGIN_PATH . 'templates/payment-history-page.php';
     }
 
     public function pallet_page() {
