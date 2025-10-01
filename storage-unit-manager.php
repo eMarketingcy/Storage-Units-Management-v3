@@ -363,12 +363,19 @@ public function init() {
     $this->pallet_email_handler = new SUM_Pallet_Email_Handler($this->pallet_database);
     $this->customer_pdf_generator = new SUM_Customer_PDF_Generator($this->customer_database);
     $this->customer_email_handler = new SUM_Customer_Email_Handler($this->customer_database);
-    
+
+    // Initialize billing automation
+    if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-billing-automation.php';
+        $this->billing_automation = new SUM_Billing_Automation();
+        $this->billing_automation->init();
+    }
+
     // 4. Register the AJAX actions from the now-initialized handlers.
     $this->ajax_handlers->init();
     $this->pallet_ajax_handlers->init();
     $this->create_customer_frontend_page();
-    
+
     // 5. Initialize payment and email hooks.
     $this->payment_handler->init();
     $this->email_handler->init();
@@ -410,18 +417,24 @@ public function init() {
         if (!wp_next_scheduled('sum_daily_email_check')) {
             wp_schedule_event(time(), 'daily', 'sum_daily_email_check');
         }
+
+        // Schedule daily billing automation check
+        if (!wp_next_scheduled('sum_billing_daily_check')) {
+            wp_schedule_event(time(), 'daily', 'sum_billing_daily_check');
+        }
         
         // Flush rewrite rules
         flush_rewrite_rules();
     }
     
     public function deactivate() {
-        // Clear scheduled hook
+        // Clear scheduled hooks
         wp_clear_scheduled_hook('sum_daily_email_check');
-        
+        wp_clear_scheduled_hook('sum_billing_daily_check');
+
         // Remove user role
         remove_role('storage_manager');
-        
+
         // Flush rewrite rules
         flush_rewrite_rules();
     }
@@ -483,7 +496,16 @@ public function init() {
             'storage-units-payment',
             array($this, 'payment_settings_page')
         );
-        
+
+        add_submenu_page(
+            'storage-units',
+            'Billing Automation',
+            'Billing Automation',
+            'manage_options',
+            'storage-billing-settings',
+            array($this, 'billing_settings_page')
+        );
+
         add_submenu_page(
             'storage-units',
             'Pallet Storage',
@@ -635,7 +657,15 @@ public function frontend_enqueue_scripts() {
     public function payment_settings_page() {
         include SUM_PLUGIN_PATH . 'templates/payment-settings-page.php';
     }
-    
+
+    public function billing_settings_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        $database = $this->database;
+        include SUM_PLUGIN_PATH . 'templates/billing-settings-page.php';
+    }
+
     public function pallet_page() {
         $customer_database = $this->customer_database; 
         include SUM_PLUGIN_PATH . 'templates/pallet-admin-page.php';

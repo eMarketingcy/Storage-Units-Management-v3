@@ -67,6 +67,7 @@ class SUM_Ajax_Handlers {
         add_action('wp_ajax_sum_get_customers_frontend', array($this, 'get_customers_frontend'));
 add_action('wp_ajax_sum_save_customer_frontend', array($this, 'save_customer_frontend'));
 add_action('wp_ajax_sum_delete_customer_frontend', array($this, 'delete_customer_frontend'));
+        add_action('wp_ajax_sum_test_billing', array($this, 'test_billing'));
 
     }
     
@@ -815,4 +816,21 @@ public function delete_customer_frontend() {
         wp_send_json_error(['message' => 'Failed to delete customer.']);
     }
 }
+
+    public function test_billing() {
+        check_ajax_referer('sum_test_billing', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+        }
+
+        if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-billing-automation.php';
+            $billing = new SUM_Billing_Automation();
+            $billing->process_daily_billing();
+            wp_send_json_success(['message' => 'Billing process completed successfully. Check error log for details.']);
+        } else {
+            wp_send_json_error(['message' => 'Billing automation class not found']);
+        }
+    }
 }
