@@ -283,8 +283,34 @@ public function payment_form_shortcode($atts) {
     ob_start();
     include $template_path; // Load the View (HTML/CSS/JS)
     return ob_get_clean();
-}    
+}
+
+/**
+ * Helper to send clean JSON error (removes any buffered output)
+ */
+private function send_json_error($message) {
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    wp_send_json_error($message);
+}
+
+/**
+ * Helper to send clean JSON success (removes any buffered output)
+ */
+private function send_json_success($data) {
+    if (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    wp_send_json_success($data);
+}
+
 public function process_stripe_payment() {
+    // Start output buffering to catch any stray output
+    if (ob_get_level() === 0) {
+        ob_start();
+    }
+
     error_log('SUM Payment: process_stripe_payment() called');
     error_log('SUM Payment: POST data: ' . print_r($_POST, true));
 
@@ -292,7 +318,7 @@ public function process_stripe_payment() {
     $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : '';
     if (!wp_verify_nonce($nonce, 'sum_payment_nonce')) {
         error_log('SUM Payment ERROR: Security check failed');
-        wp_send_json_error('Security check failed');
+        $this->send_json_error('Security check failed');
         return;
     }
 
@@ -320,7 +346,7 @@ public function process_stripe_payment() {
         if (empty($payment_token)) $missing[] = 'payment_token';
         if ($amount <= 0)          $missing[] = 'amount';
         error_log('SUM Payment ERROR: Missing data - ' . implode(', ', $missing));
-        wp_send_json_error('Missing required payment information: ' . implode(', ', $missing));
+        $this->send_json_error('Missing required payment information: ' . implode(', ', $missing));
         return;
     }
 
@@ -338,10 +364,10 @@ public function process_stripe_payment() {
         if ($db_token) {
             $match = function_exists('hash_equals') ? hash_equals($db_token, $payment_token) : ($db_token === $payment_token);
         }
-        if (!$match) { wp_send_json_error('Invalid payment token'); return; }
+        if (!$match) { $this->send_json_error('Invalid payment token'); return; }
 
     } elseif ($is_pallet) {
-        if (!$this->pallet_db) { wp_send_json_error('Invalid payment token'); return; }
+        if (!$this->pallet_db) { $this->send_json_error('Invalid payment token'); return; }
         $db_token = method_exists($this->pallet_db, 'get_payment_token') ? (string)$this->pallet_db->get_payment_token($entity_id) : '';
         $tx_token = (string) get_transient("sum_pallet_payment_token_{$entity_id}");
         $match = false;
@@ -351,7 +377,7 @@ public function process_stripe_payment() {
         if (!$match && $tx_token) {
             $match = function_exists('hash_equals') ? hash_equals($tx_token, $payment_token) : ($tx_token === $payment_token);
         }
-        if (!$match) { wp_send_json_error('Invalid payment token'); return; }
+        if (!$match) { $this->send_json_error('Invalid payment token'); return; }
     } else {
         $db_token = method_exists($this->database, 'get_unit_payment_token') ? (string)$this->database->get_unit_payment_token($entity_id) : '';
         $tx_token = (string) get_transient("sum_payment_token_{$entity_id}");
@@ -362,7 +388,7 @@ public function process_stripe_payment() {
         if (!$match && $tx_token) {
             $match = function_exists('hash_equals') ? hash_equals($tx_token, $payment_token) : ($tx_token === $payment_token);
         }
-        if (!$match) { wp_send_json_error('Invalid payment token'); return; }
+        if (!$match) { $this->send_json_error('Invalid payment token'); return; }
     }
 
     // Load record (for metadata)
@@ -372,24 +398,24 @@ public function process_stripe_payment() {
         }
         $customer_db = new SUM_Customer_Database();
         $rec = $customer_db->get_customer($entity_id);
-        if (!$rec) { wp_send_json_error('Customer not found'); return; }
+        if (!$rec) { $this->send_json_error('Customer not found'); return; }
         $meta_name = 'Multiple Units';
         $customer  = isset($rec['full_name']) ? $rec['full_name'] : '';
     } elseif ($is_pallet) {
         $rec = $this->pallet_db->get_pallet($entity_id);
-        if (!$rec) { wp_send_json_error('Pallet not found'); return; }
+        if (!$rec) { $this->send_json_error('Pallet not found'); return; }
         $meta_name = isset($rec['pallet_name']) ? $rec['pallet_name'] : '';
         $customer  = isset($rec['primary_contact_name']) ? $rec['primary_contact_name'] : '';
     } else {
         $rec = $this->database->get_unit($entity_id);
-        if (!$rec) { wp_send_json_error('Unit not found'); return; }
+        if (!$rec) { $this->send_json_error('Unit not found'); return; }
         $meta_name = isset($rec['unit_name']) ? $rec['unit_name'] : '';
         $customer  = isset($rec['primary_contact_name']) ? $rec['primary_contact_name'] : '';
     }
 
     // Stripe secret
     $secret = $this->database->get_setting('stripe_secret_key', '');
-    if (!$secret) { wp_send_json_error('Payment system not configured'); return; }
+    if (!$secret) { $this->send_json_error('Payment system not configured'); return; }
 
     // Build charge
     if ($is_customer) {
@@ -428,17 +454,17 @@ public function process_stripe_payment() {
         'timeout' => 30,
     ));
 
-    if (is_wp_error($resp)) { wp_send_json_error('Payment processing failed'); return; }
+    if (is_wp_error($resp)) { $this->send_json_error('Payment processing failed'); return; }
     $code = wp_remote_retrieve_response_code($resp);
     $body = wp_remote_retrieve_body($resp);
     if ($code !== 200) {
         $err = json_decode($body, true);
-        wp_send_json_error(isset($err['error']['message']) ? $err['error']['message'] : 'Payment failed'); return;
+        $this->send_json_error(isset($err['error']['message']) ? $err['error']['message'] : 'Payment failed'); return;
     }
 
     $result = json_decode($body, true);
     if (!$result || !isset($result['id']) || (!isset($result['status']) || $result['status'] !== 'succeeded')) {
-        wp_send_json_error('Payment was not successful'); return;
+        $this->send_json_error('Payment was not successful'); return;
     }
 
     // Mark as paid, clean transients, rotate DB token
@@ -498,7 +524,7 @@ public function process_stripe_payment() {
     }
 
     if ($update_result === false) {
-        wp_send_json_error('Payment processed but failed to update records'); return;
+        $this->send_json_error('Payment processed but failed to update records'); return;
     }
 
     // Log payment details for debugging
@@ -572,7 +598,7 @@ public function process_stripe_payment() {
     // Send payment confirmation email with receipt
     $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount, $payment_months);
 
-    wp_send_json_success('Payment processed successfully');
+    $this->send_json_success('Payment processed successfully');
 }
 
 /**
