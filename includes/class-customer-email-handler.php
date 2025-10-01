@@ -110,7 +110,7 @@ if (count($rentals) === 1 && $froms && $untils) {
     }
 }
 
-        // 2) Payment link (customer-wide)
+        // 2) Payment link (customer-wide) - ensure token exists
         $pay_page_id = (int) get_option('sum_payment_page_id');
         $payment_page_url = $pay_page_id ? get_permalink($pay_page_id) : home_url('/storage-payment/');
         $token = $this->customer_db->ensure_customer_payment_token($customer_id);
@@ -120,6 +120,9 @@ if (count($rentals) === 1 && $froms && $untils) {
             'token'       => $token,
         ], $payment_page_url);
         $payment_link = esc_url($payment_link_raw); // HTML-safe
+
+        // Log for debugging
+        error_log("SUM Customer: Payment link generated for customer {$customer_id}: {$payment_link}");
 
         // 3) Generate consolidated PDF (path)
         $pdf_path = null;

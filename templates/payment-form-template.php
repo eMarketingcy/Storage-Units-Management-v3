@@ -105,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- PHP vars (Passed from the shortcode handler) ---
   var isPallet        = <?php echo $is_pallet ? 'true' : 'false'; ?>;
+  var isCustomer      = <?php echo isset($is_customer) && $is_customer ? 'true' : 'false'; ?>;
   var entityId        = <?php echo json_encode($unit['id']); ?>;
   var phpPaymentToken = <?php echo json_encode($unit['payment_token']); ?>;
   var phpAmountRaw    = <?php echo json_encode($total_due_raw); ?>; // Use raw float for JS calculation
@@ -161,7 +162,13 @@ document.addEventListener('DOMContentLoaded', function() {
             amount: Math.round(phpAmountRaw * 100), // Convert Euros to cents
             nonce: wpNonce
           };
-          if (isPallet) data.pallet_id = entityId; else data.unit_id = entityId;
+          if (isCustomer) {
+            data.customer_id = entityId;
+          } else if (isPallet) {
+            data.pallet_id = entityId;
+          } else {
+            data.unit_id = entityId;
+          }
 
           fetch(ajaxUrl, {
             method: 'POST',
@@ -208,7 +215,13 @@ document.addEventListener('DOMContentLoaded', function() {
         payment_token: phpPaymentToken,
         nonce: wpNonce
       };
-      if (isPallet) { data.pallet_id = entityId; } else { data.unit_id = entityId; }
+      if (isCustomer) {
+        data.customer_id = entityId;
+      } else if (isPallet) {
+        data.pallet_id = entityId;
+      } else {
+        data.unit_id = entityId;
+      }
 
       var old = downloadBtn.textContent;
       downloadBtn.disabled = true; downloadBtn.textContent = 'Generating...';
