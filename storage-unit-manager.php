@@ -3,7 +3,7 @@
  * Plugin Name: Storage Unit Manager
  * Plugin URI: https://selfstorage.cy
  * Description: Comprehensive storage unit management system with frontend access, email automation, bulk operations, and advanced filtering.
- * Version: 3.1.2
+ * Version: 4.0.0
  * Author: eMarketing Cyprus
  * Author URI: https://selfstorage.cy
  * License: GPL v2 or later
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
 // Define plugin constants
 define('SUM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SUM_PLUGIN_PATH', plugin_dir_path(__FILE__));
-define('SUM_VERSION', '3.1.3');
+define('SUM_VERSION', '4.0.0');
 
 // --- START: PDF Dependency Management Functions ---
 
