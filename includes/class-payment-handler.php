@@ -823,41 +823,12 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
                 <span class="info-label">Payment Date:</span>
                 <span class="info-value">' . esc_html($payment_date) . '</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Amount Paid:</span>
-                <span class="info-value" style="color:#10b981;font-size:18px;">' . $currency . ' ' . number_format($amount, 2) . '</span>
-            </div>
         </div>
 
-        <h3 class="section-title">Billing Details</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Unit(s) / Pallet(s)</th>
-                    <th style="text-align:center;">Period</th>
-                    <th style="text-align:right;">Rate</th>
-                    <th style="text-align:right;">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                ' . $rentals_rows . '
-            </tbody>
-            <tfoot>
-                <tr class="subtotal-row">
-                    <td colspan="3" style="text-align:right;padding:12px;">Subtotal:</td>
-                    <td style="text-align:right;padding:12px;">' . $currency . ' ' . number_format($subtotal, 2) . '</td>
-                </tr>' .
-                ($vat_enabled ? '
-                <tr class="vat-row">
-                    <td colspan="3" style="text-align:right;padding:12px;">VAT (' . number_format($vat_rate, 0) . '%):</td>
-                    <td style="text-align:right;padding:12px;">' . $currency . ' ' . number_format($vat_amount, 2) . '</td>
-                </tr>' : '') . '
-                <tr class="total-row">
-                    <td colspan="3" style="text-align:right;padding:12px;">Total Paid:</td>
-                    <td style="text-align:right;padding:12px;" class="total-amount">' . $currency . ' ' . number_format($total, 2) . '</td>
-                </tr>
-            </tfoot>
-        </table>
+        <div style="background:#f8fafc;padding:24px;border-radius:8px;margin:24px 0;text-align:center;">
+            <p style="margin:0 0 8px;color:#64748b;font-size:14px;">Total Amount Paid</p>
+            <p style="margin:0;color:#10b981;font-size:32px;font-weight:700;">' . $currency . ' ' . number_format($amount, 2) . '</p>
+        </div>
 
         <h3 class="section-title">Payment History</h3>
         <table>
