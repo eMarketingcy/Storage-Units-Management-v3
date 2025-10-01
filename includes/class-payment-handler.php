@@ -89,8 +89,8 @@ public function payment_form_shortcode($atts) {
             return '<div class="sum-error">Customer not found.</div>';
         }
 
-        // Get all customer rentals for aggregation
-        $rentals = $customer_db->get_customer_rentals($entity_id);
+        // Get UNPAID customer rentals for aggregation (same as email)
+        $rentals = $customer_db->get_customer_rentals($entity_id, true);
 
     } else {
         // Unit or Pallet payment flow (existing code)
