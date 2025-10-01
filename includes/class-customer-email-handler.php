@@ -38,9 +38,9 @@ class SUM_Customer_Email_Handler {
             return new WP_Error('sum_no_customer_email', 'Customer not found or has no email.');
         }
 
-        // 1) Rentals + Totals
+        // 1) Rentals + Totals - ONLY UNPAID
         // 1) Rentals + aggregates
-$rentals  = (array) $this->customer_db->get_customer_rentals($customer_id);
+$rentals  = (array) $this->customer_db->get_customer_rentals($customer_id, true);
 
 // Names, sizes, monthly subtotal, status roll-up, period logic
 $names = [];

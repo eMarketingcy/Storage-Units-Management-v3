@@ -434,12 +434,12 @@ public function process_stripe_payment() {
     // Mark as paid, clean transients, rotate DB token
     global $wpdb;
     if ($is_customer) {
-        // For customer payments, mark all their rentals as paid
+        // For customer payments, mark ONLY UNPAID rentals as paid
         if (!class_exists('SUM_Customer_Database')) {
             require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
         }
         $customer_db = new SUM_Customer_Database();
-        $rentals = $customer_db->get_customer_rentals($entity_id);
+        $rentals = $customer_db->get_customer_rentals($entity_id, true);
 
         foreach ($rentals as $rental) {
             if ($rental['type'] === 'pallet') {
@@ -542,9 +542,9 @@ public function ajax_generate_invoice_pdf() {
         if (!class_exists('SUM_Customer_PDF_Generator')) { wp_send_json_error('PDF generator not available'); return; }
 
         $pdf_gen = new SUM_Customer_PDF_Generator($customer_db);
-        $rentals = $customer_db->get_customer_rentals($entity_id);
+        $rentals = $customer_db->get_customer_rentals($entity_id, true);
 
-        // Build items for PDF
+        // Build items for PDF (unpaid only)
         $items = array();
         foreach ($rentals as $r) {
             $type = $r['type'] === 'pallet' ? 'Pallet' : 'Unit';

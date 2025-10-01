@@ -121,12 +121,16 @@ public function save_customer($data) {
         return $wpdb->delete($table_name, array('id' => $customer_id), array('%d'));
     }
     
-public function get_customer_rentals( int $customer_id ): array {
+public function get_customer_rentals( int $customer_id, bool $unpaid_only = false ): array {
     global $wpdb;
     $customer_id = absint($customer_id);
 
     $units   = $wpdb->prefix . 'storage_units';
     $pallets = $wpdb->prefix . 'storage_pallets';
+
+    // Add payment status filter if needed
+    $payment_filter_units = $unpaid_only ? "AND u.payment_status IN ('unpaid', 'overdue')" : "";
+    $payment_filter_pallets = $unpaid_only ? "AND p.payment_status IN ('unpaid', 'overdue')" : "";
 
     $sql = $wpdb->prepare("
         /* Units */
@@ -142,7 +146,7 @@ public function get_customer_rentals( int $customer_id ): array {
             NULL             AS pallet_type,
             NULL             AS charged_height
          FROM {$units} u
-         WHERE u.customer_id = %d)
+         WHERE u.customer_id = %d {$payment_filter_units})
 
         UNION ALL
 
@@ -159,7 +163,7 @@ public function get_customer_rentals( int $customer_id ): array {
             p.pallet_type    AS pallet_type,
             p.charged_height AS charged_height
          FROM {$pallets} p
-         WHERE p.customer_id = %d)
+         WHERE p.customer_id = %d {$payment_filter_pallets})
 
         ORDER BY period_until ASC, type ASC, name ASC
     ", $customer_id, $customer_id);
