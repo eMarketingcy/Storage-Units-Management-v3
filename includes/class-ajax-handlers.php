@@ -791,7 +791,15 @@ public function save_customer_frontend() {
     if (!$this->check_frontend_access()) wp_send_json_error('Access Denied');
     $data = $_POST['customer_data'] ?? [];
     $result = $this->customer_database->save_customer($data);
-    if ($result) {
+
+    if (is_array($result) && isset($result['status'])) {
+        if ($result['status'] === 'success') {
+            wp_send_json_success(['id' => $result['id']]);
+        } else {
+            wp_send_json_error(['message' => $result['message'] ?? 'Failed to save customer.']);
+        }
+    } else if ($result) {
+        // Legacy: if result is just an ID
         wp_send_json_success(['id' => $result]);
     } else {
         wp_send_json_error(['message' => 'Failed to save customer.']);

@@ -88,6 +88,25 @@ public function save_customer($data) {
         return ['status' => 'error', 'message' => 'Full name and email are required.'];
     }
 
+    // Check for duplicate email
+    $email_check_query = $wpdb->prepare(
+        "SELECT id FROM {$table_name} WHERE email = %s",
+        $customer_data['email']
+    );
+    if ($customer_id > 0) {
+        // When updating, exclude current customer from check
+        $email_check_query = $wpdb->prepare(
+            "SELECT id FROM {$table_name} WHERE email = %s AND id != %d",
+            $customer_data['email'],
+            $customer_id
+        );
+    }
+    $existing_id = $wpdb->get_var($email_check_query);
+
+    if ($existing_id) {
+        return ['status' => 'error', 'message' => 'Email already exists. Please use a different email address.'];
+    }
+
     if ($customer_id > 0) {
         // Update existing customer
         $result = $wpdb->update($table_name, $customer_data, array('id' => $customer_id));

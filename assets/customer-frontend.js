@@ -1,19 +1,25 @@
 // assets/customer-frontend.js
 jQuery(document).ready(function($) {
     let customers = [];
-    let currentViewMode = 'list'; // Default to list view as requested
+    let currentViewMode = localStorage.getItem('sum_customer_view') || 'grid';
 
     // --- Main Functions ---
     function loadCustomers() {
-        // Show loading state
-        $('#frontend-customers-list').html('<div class="sum-customer-loading">Loading customers...</div>');
-        $('#frontend-empty-customers').hide();
+        // Show loading state - use dedicated loading element
+        const $loading = $('#frontend-loading-customers');
+        const $list = $('#frontend-customers-list');
+        const $empty = $('#frontend-empty-customers');
+
+        $loading.show();
+        $list.empty().hide();
+        $empty.hide();
 
         $.ajax({
             url: sum_customer_frontend_ajax.ajax_url,
             type: 'POST',
             data: { action: 'sum_get_customers_frontend', nonce: sum_customer_frontend_ajax.nonce },
             success: function(response) {
+                $('#frontend-loading-customers').hide();
                 if (response.success) {
                     customers = response.data;
                     renderCustomers();
@@ -24,6 +30,7 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function() {
+                $('#frontend-loading-customers').hide();
                 showError('Failed to load customers.');
                 $('#frontend-empty-customers').show();
             }
@@ -200,6 +207,7 @@ jQuery(document).ready(function($) {
 
     function toggleView(mode) {
         currentViewMode = mode;
+        localStorage.setItem('sum_customer_view', mode);
 
         // Update button states
         $('.sum-customer-view-btn').removeClass('active');
@@ -285,10 +293,18 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     $modal.hide();
                     loadCustomers();
-                    showSuccess('Customer saved!');
+                    showSuccess('Customer saved successfully!');
                 } else {
-                    showError(response.data.message || 'Could not save customer.');
+                    const errorMsg = response.data && response.data.message ? response.data.message : 'Could not save customer.';
+                    if (errorMsg.toLowerCase().includes('email') && errorMsg.toLowerCase().includes('exist')) {
+                        showError('⚠️ This email address is already registered. Please use a different email.');
+                    } else {
+                        showError(errorMsg);
+                    }
                 }
+            },
+            error: function() {
+                showError('Network error. Please try again.');
             }
         });
     }
@@ -392,6 +408,10 @@ jQuery(document).ready(function($) {
             setTimeout(() => toast.remove(), 300);
         }, 5000);
     }
+
+    // Set initial view mode
+    $('.sum-customer-view-btn').removeClass('active');
+    $(`.sum-customer-view-btn[data-view="${currentViewMode}"]`).addClass('active');
 
     // Initial Load
     loadCustomers();
