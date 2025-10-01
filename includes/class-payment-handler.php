@@ -513,7 +513,7 @@ public function process_stripe_payment() {
                 $current_until = $pallet['period_until'];
                 $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
 
-                $result = $wpdb->update(
+                $update_result = $wpdb->update(
                     $wpdb->prefix . 'storage_pallets',
                     array('period_until' => $new_until),
                     array('id' => $entity_id),
@@ -521,7 +521,7 @@ public function process_stripe_payment() {
                     array('%d')
                 );
 
-                if ($result !== false) {
+                if ($update_result !== false) {
                     error_log("SUM Payment SUCCESS: Extended pallet {$entity_id} from {$current_until} to {$new_until}");
                 } else {
                     error_log("SUM Payment ERROR: Failed to extend pallet {$entity_id} - " . $wpdb->last_error);
@@ -536,7 +536,7 @@ public function process_stripe_payment() {
                 $current_until = $unit['period_until'];
                 $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
 
-                $result = $wpdb->update(
+                $update_result = $wpdb->update(
                     $wpdb->prefix . 'storage_units',
                     array('period_until' => $new_until),
                     array('id' => $entity_id),
@@ -544,7 +544,7 @@ public function process_stripe_payment() {
                     array('%d')
                 );
 
-                if ($result !== false) {
+                if ($update_result !== false) {
                     error_log("SUM Payment SUCCESS: Extended unit {$entity_id} from {$current_until} to {$new_until}");
                 } else {
                     error_log("SUM Payment ERROR: Failed to extend unit {$entity_id} - " . $wpdb->last_error);
