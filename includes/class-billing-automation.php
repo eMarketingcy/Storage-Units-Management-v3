@@ -334,32 +334,14 @@ class SUM_Billing_Automation {
             $customer['full_name']
         ));
 
-        // Find the LATEST period_until date across all items
-        $latest_date = null;
-        foreach ($units as $unit) {
-            if (!$latest_date || strtotime($unit->period_until) > strtotime($latest_date)) {
-                $latest_date = $unit->period_until;
-            }
-        }
-        foreach ($pallets as $pallet) {
-            if (!$latest_date || strtotime($pallet->period_until) > strtotime($latest_date)) {
-                $latest_date = $pallet->period_until;
-            }
-        }
+        error_log("SUM Billing: Extending customer {$customer_id} rentals by {$months_paid} months");
 
-        if (!$latest_date) {
-            error_log("SUM Billing: No period_until dates found for customer {$customer_id}");
-            return false;
-        }
-
-        // Calculate new period_until based on the LATEST date
-        $new_until = date('Y-m-d', strtotime($latest_date . ' +' . $months_paid . ' months'));
-
-        error_log("SUM Billing: Extending customer {$customer_id} from {$latest_date} to {$new_until} (+{$months_paid} months)");
-
-        // Update ALL units to the new date
+        // Update EACH unit individually from its OWN date
         $units_updated = 0;
         foreach ($units as $unit) {
+            $current_until = $unit->period_until;
+            $new_until = date('Y-m-d', strtotime($current_until . ' +' . $months_paid . ' months'));
+
             $result = $wpdb->update(
                 $units_table,
                 array(
@@ -368,15 +350,19 @@ class SUM_Billing_Automation {
                 ),
                 array('id' => $unit->id)
             );
+
             if ($result !== false) {
                 $units_updated++;
-                error_log("SUM Billing: Updated unit {$unit->unit_name} (ID: {$unit->id}) to {$new_until}");
+                error_log("SUM Billing: Extended unit {$unit->unit_name} from {$current_until} to {$new_until}");
             }
         }
 
-        // Update ALL pallets to the new date
+        // Update EACH pallet individually from its OWN date
         $pallets_updated = 0;
         foreach ($pallets as $pallet) {
+            $current_until = $pallet->period_until;
+            $new_until = date('Y-m-d', strtotime($current_until . ' +' . $months_paid . ' months'));
+
             $result = $wpdb->update(
                 $pallets_table,
                 array(
@@ -385,9 +371,10 @@ class SUM_Billing_Automation {
                 ),
                 array('id' => $pallet->id)
             );
+
             if ($result !== false) {
                 $pallets_updated++;
-                error_log("SUM Billing: Updated pallet {$pallet->pallet_name} (ID: {$pallet->id}) to {$new_until}");
+                error_log("SUM Billing: Extended pallet {$pallet->pallet_name} from {$current_until} to {$new_until}");
             }
         }
 

@@ -501,10 +501,61 @@ public function process_stripe_payment() {
         }
     }
 
+    // Record payment in history
+    if ($is_customer) {
+        $this->record_payment_in_history($entity_id, $result['id'], $amount / 100, $payment_months);
+    }
+
     // Send payment confirmation email with receipt
     $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount, $payment_months);
 
     wp_send_json_success('Payment processed successfully');
+}
+
+/**
+ * Record payment in history database
+ */
+private function record_payment_in_history($customer_id, $transaction_id, $amount, $payment_months = 1) {
+    if (!class_exists('SUM_Payment_History')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
+    }
+
+    if (!class_exists('SUM_Customer_Database')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
+    }
+
+    $customer_db = new SUM_Customer_Database();
+    $customer = $customer_db->get_customer($customer_id);
+
+    if (!$customer) {
+        error_log("SUM Payment History: Customer {$customer_id} not found");
+        return false;
+    }
+
+    $rentals = $customer_db->get_customer_rentals($customer_id, true);
+
+    $items_paid = array();
+    foreach ($rentals as $rental) {
+        $items_paid[] = array(
+            'type' => isset($rental['type']) ? $rental['type'] : 'item',
+            'name' => isset($rental['name']) ? $rental['name'] : 'Unknown',
+            'period_until' => isset($rental['period_until']) ? $rental['period_until'] : null,
+            'monthly_price' => isset($rental['monthly_price']) ? $rental['monthly_price'] : 0
+        );
+    }
+
+    $history = new SUM_Payment_History();
+    $currency = strtoupper($this->database->get_setting('currency', 'EUR'));
+
+    return $history->record_payment(
+        $customer_id,
+        $customer['full_name'],
+        $transaction_id,
+        $amount,
+        $currency,
+        $payment_months,
+        $items_paid
+    );
 }
 
 /**
@@ -645,20 +696,23 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
                                 ' . $rentals_html;
 
     // Add advance payment info to email if payment_months > 1
-    if ($payment_months > 1) {
-        $new_period_until = '—';
-        if (!empty($rentals) && isset($rentals[0]['period_until'])) {
-            $current_until = $rentals[0]['period_until'];
-            $new_date = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
-            $new_period_until = date_i18n('F j, Y', strtotime($new_date));
+    if ($payment_months > 1 && !empty($rentals)) {
+        // Show all items with their new paid-until dates
+        $items_html = '';
+        foreach ($rentals as $rental) {
+            $item_name = isset($rental['name']) ? $rental['name'] : 'Item';
+            $item_type = isset($rental['type']) ? ucfirst($rental['type']) : '';
+            $paid_until = isset($rental['period_until']) ? date_i18n('F j, Y', strtotime($rental['period_until'])) : '—';
+            $items_html .= '<p style="margin:4px 0 0;color:#475569;font-size:14px;">• ' . esc_html($item_type . ' ' . $item_name) . ': <strong>' . esc_html($paid_until) . '</strong></p>';
         }
 
         $body .= '
                                 <div style="background:#e0f2fe;border-left:5px solid #3b82f6;padding:20px;border-radius:8px;margin:24px 0;">
                                     <h3 style="margin:0 0 12px;color:#1e40af;font-size:16px;">📅 Advance Payment Confirmation</h3>
                                     <p style="margin:0 0 8px;color:#1e3a8a;font-size:15px;"><strong>Payment Period:</strong> ' . esc_html($payment_months) . ' month(s)</p>
-                                    <p style="margin:0 0 8px;color:#1e3a8a;font-size:15px;"><strong>Paid Until:</strong> ' . esc_html($new_period_until) . '</p>
-                                    <p style="margin:12px 0 0;color:#475569;font-size:14px;">✓ Your rental period has been extended automatically for all items.</p>
+                                    <p style="margin:0 0 8px;color:#1e3a8a;font-size:15px;"><strong>Items Paid Until:</strong></p>
+                                    ' . $items_html . '
+                                    <p style="margin:12px 0 0;color:#475569;font-size:14px;">✓ Your rental period has been extended automatically.</p>
                                 </div>';
     }
 
@@ -722,7 +776,15 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
     $pdf_dir = $upload_dir['basedir'] . '/receipts';
     if (!file_exists($pdf_dir)) { wp_mkdir_p($pdf_dir); }
 
-    $pdf_filename = 'receipt-' . ($is_pallet ? 'pallet-' : 'unit-') . $entity_id . '-' . date('Y-m-d-H-i-s') . '.pdf';
+    // Generate filename with all items
+    $filename_items = array();
+    foreach ($rentals as $rental) {
+        $type = isset($rental['type']) ? strtolower($rental['type']) : 'item';
+        $name = isset($rental['name']) ? preg_replace('/[^a-zA-Z0-9]/', '', $rental['name']) : 'unknown';
+        $filename_items[] = $type . $name;
+    }
+    $items_str = !empty($filename_items) ? implode('-', $filename_items) : 'receipt';
+    $pdf_filename = 'receipt-' . $items_str . '-' . date('Y-m-d-H-i-s') . '.pdf';
     $pdf_filepath = trailingslashit($pdf_dir) . $pdf_filename;
 
     // Get company settings
@@ -860,20 +922,22 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
         </div>';
 
     // Add payment period information if paying for multiple months
-    if ($payment_months > 1) {
-        // Calculate new period_until date for display
-        $new_period_until = '—';
-        if (!empty($rentals) && isset($rentals[0]['period_until'])) {
-            $current_until = $rentals[0]['period_until'];
-            $new_date = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
-            $new_period_until = date_i18n('F j, Y', strtotime($new_date));
+    if ($payment_months > 1 && !empty($rentals)) {
+        // Show all items with their new paid-until dates
+        $items_list = '';
+        foreach ($rentals as $rental) {
+            $item_name = isset($rental['name']) ? $rental['name'] : 'Item';
+            $item_type = isset($rental['type']) ? ucfirst($rental['type']) : '';
+            $paid_until = isset($rental['period_until']) ? date_i18n('F j, Y', strtotime($rental['period_until'])) : '—';
+            $items_list .= '<p style="margin:4px 0 0;color:#475569;font-size:13px;">• ' . esc_html($item_type . ' ' . $item_name) . ': <strong>' . esc_html($paid_until) . '</strong></p>';
         }
 
         $html .= '
         <div style="background:#e0f2fe;padding:20px;border-radius:8px;margin:24px 0;border-left:5px solid #3b82f6;">
             <h3 style="margin:0 0 12px;color:#1e40af;font-size:16px;">📅 Advance Payment</h3>
             <p style="margin:0 0 8px;color:#1e3a8a;"><strong>Payment Period:</strong> ' . esc_html($payment_months) . ' month(s)</p>
-            <p style="margin:0;color:#1e3a8a;"><strong>Paid Until:</strong> ' . esc_html($new_period_until) . '</p>
+            <p style="margin:0 0 8px;color:#1e3a8a;"><strong>Items Paid Until:</strong></p>
+            ' . $items_list . '
             <p style="margin:12px 0 0;color:#475569;font-size:13px;">✓ Your rental period has been extended automatically.</p>
         </div>';
     }
