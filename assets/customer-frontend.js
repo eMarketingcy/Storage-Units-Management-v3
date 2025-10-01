@@ -82,7 +82,8 @@ function renderCustomerCard(customer) {
             </div>
             <div class="sum-frontend-card-actions">
                 <button type="button" class="sum-frontend-btn sum-frontend-btn-icon frontend-generate-invoice-pdf" title="Download Full Invoice">📄</button>
-                <button type="button" class="sum-frontend-btn sum-frontend-btn-icon frontend-send-invoice-email" title="Send Full Invoice">✉️</button>
+                <button type="button" class="sum-frontend-btn sum-frontend-btn-icon frontend-send-customer-invoice-btn" data-customer-id="{{customer_id}}" title="Send Customer Invoice">✉️</button>
+
                 <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary frontend-edit-customer">Edit</button>
                 <button type="button" class="sum-frontend-btn sum-frontend-btn-danger frontend-delete-customer">Delete</button>
             </div>
@@ -170,6 +171,9 @@ function renderCustomerCard(customer) {
             $('#frontend-phone').val(customer.phone);
             $('#frontend-whatsapp').val(customer.whatsapp);
             $('#frontend-full-address').val(customer.full_address);
+            // --- NEW: Populate document fields ---
+            $('#frontend-upload-id').val(customer.upload_id);
+            $('#frontend-utility-bill').val(customer.utility_bill);
         } else {
             $('#frontend-modal-title').text('Add New Customer');
         }
@@ -244,6 +248,57 @@ function renderCustomerCard(customer) {
             }
         });
     }
+    
+  // Click binding for customer cards/buttons
+$(document).on('click', '.frontend-send-customer-invoice-btn', function () {
+  const customerId = $(this).data('customer-id');
+  sendCustomerInvoice(customerId);
+});
+
+function sendCustomerInvoice(customerId) {
+  if (!customerId) {
+    showError('Missing customer ID');
+    return;
+  }
+
+  if (!confirm('Are you sure you want to send a consolidated invoice to this customer?')) {
+    return;
+  }
+
+  // Optional: disable the button to prevent double-clicks
+  const $btn = $(`.frontend-send-customer-invoice-btn[data-customer-id="${customerId}"]`);
+  $btn.prop('disabled', true).addClass('is-loading');
+
+  $.ajax({
+    url: sum_frontend_ajax.ajax_url,
+    type: 'POST',
+    dataType: 'json',
+    data: {
+      action: 'sum_send_customer_invoice_frontend',
+      nonce: sum_frontend_ajax.nonce,
+      customer_id: customerId
+    },
+    success: function (response) {
+      if (response && response.success) {
+        // Prefer response.data.message if provided
+        const msg = (response.data && response.data.message) ? response.data.message : 'Invoice sent.';
+        showSuccess(msg);
+      } else {
+        const err = (response && response.data && response.data.message) ? response.data.message : 'Failed to send invoice';
+        showError(err);
+      }
+    },
+    error: function (xhr) {
+      const err = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message)
+        ? xhr.responseJSON.data.message
+        : 'Failed to send invoice';
+      showError(err);
+    },
+    complete: function () {
+      $btn.prop('disabled', false).removeClass('is-loading');
+    }
+  });
+}
 
     function generateFullInvoicePDF(customerId) {
         const downloadUrl = `${sum_customer_frontend_ajax.ajax_url}?action=sum_generate_customer_invoice_pdf&nonce=${sum_customer_frontend_ajax.nonce}&customer_id=${customerId}`;
@@ -268,8 +323,41 @@ function renderCustomerCard(customer) {
         }
     }
 
-    function showSuccess(message) { /* Add your toast notification here */ console.log("SUCCESS:", message); }
-    function showError(message) { /* Add your toast notification here */ console.error("ERROR:", message); }
+    function showSuccess(message) {
+        // Create a modern toast notification for success
+        const toast = jQuery(`
+            <div class="sum-frontend-toast sum-frontend-toast-success">
+                <div class="sum-frontend-toast-icon">✅</div>
+                <div class="sum-frontend-toast-message">${message}</div>
+            </div>
+        `);
+        
+        jQuery('body').append(toast);
+        
+        setTimeout(() => { toast.addClass('sum-frontend-toast-show'); }, 100);
+        setTimeout(() => { 
+            toast.removeClass('sum-frontend-toast-show'); 
+            setTimeout(() => toast.remove(), 300); 
+        }, 3000);
+    }
+    
+    function showError(message) {
+        // Create a modern toast notification for error
+        const toast = jQuery(`
+            <div class="sum-frontend-toast sum-frontend-toast-error">
+                <div class="sum-frontend-toast-icon">❌</div>
+                <div class="sum-frontend-toast-message">${message}</div>
+            </div>
+        `);
+        
+        jQuery('body').append(toast);
+        
+        setTimeout(() => { toast.addClass('sum-frontend-toast-show'); }, 100);
+        setTimeout(() => { 
+            toast.removeClass('sum-frontend-toast-show'); 
+            setTimeout(() => toast.remove(), 300); 
+        }, 5000);
+    }
 
     // Initial Load
     loadCustomers();

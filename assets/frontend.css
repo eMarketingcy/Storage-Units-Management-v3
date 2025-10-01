@@ -1,4 +1,4 @@
-/* Storage Unit Manager Frontend - Modern Mobile-First Design */
+    /* Storage Unit Manager Frontend - Modern Mobile-First Design */
 
 /* CSS Variables for Consistent Theming */
 :root {
@@ -24,6 +24,14 @@
     --frontend-spacing-xl: 2rem;
     --pallet-primary: #f97316;
     --pallet-primary-dark: #ea580c;
+}
+
+/* Style for the customer email on the card */
+.sum-frontend-detail-value .customer-email {
+    font-weight: 400;
+    color: var(--frontend-text-muted);
+    font-size: 0.9em;
+    margin-left: 4px;
 }
 
 /* Base Styles */
@@ -445,9 +453,7 @@
     text-decoration: none;
 }
 
-.sum-frontend-btn-icon {
-    font-size: 1.1em;
-}
+
 
 /* Grid */
 .sum-frontend-grid {
@@ -1277,6 +1283,52 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* --- HEADER & NAVIGATION --- */
+.sum-frontend-header-content { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; background: linear-gradient(135deg, var(--frontend-primary), var(--frontend-primary-dark)); color: white; border-radius: var(--frontend-radius-lg); box-shadow: var(--frontend-shadow); margin-bottom: 2rem; }
+.sum-frontend-title-section { display: flex; align-items: center; gap: var(--frontend-spacing); }
+.sum-frontend-icon { font-size: 2.5rem; }
+.sum-frontend-title-text h1 { margin: 0; font-size: 1.75rem; font-weight: 800; }
+.sum-frontend-title-text p { margin: 0; opacity: 0.9; }
+.sum-frontend-navigation { display: flex; gap: var(--frontend-spacing); margin-bottom: 2rem; }
+.sum-frontend-nav-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background: var(--frontend-surface); border: 2px solid var(--frontend-border); border-radius: var(--frontend-radius); text-decoration: none; color: var(--frontend-text-muted); font-weight: 500; transition: all 0.2s ease; }
+.sum-frontend-nav-item:hover { border-color: var(--frontend-primary); color: var(--frontend-primary); text-decoration: none; }
+.sum-frontend-nav-active { background: var(--frontend-primary); border-color: var(--frontend-primary); color: white !important; }
+
+/* --- CONTROLS, STATS, BUTTONS --- */
+.sum-frontend-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--frontend-spacing); margin-bottom: 2rem; }
+.sum-frontend-stat-card { background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); padding: 1.5rem; box-shadow: var(--frontend-shadow); }
+.sum-frontend-stat-value { font-size: 2rem; font-weight: 800; }
+.sum-frontend-stat-label { font-size: 0.875rem; color: var(--frontend-text-muted); }
+.sum-frontend-controls { background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); padding: 1.5rem; box-shadow: var(--frontend-shadow); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; gap: var(--frontend-spacing); }
+.sum-frontend-search-input { width: 100%; max-width: 400px; padding: 0.75rem 1rem; border: 2px solid var(--frontend-border); border-radius: var(--frontend-radius); font-size: 1rem; }
+.sum-frontend-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; border: none; border-radius: var(--frontend-radius); font-size: 1rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+.sum-frontend-btn-primary { background: linear-gradient(135deg, var(--frontend-primary), var(--frontend-primary-dark)); color: white; }
+
+/* --- UNIFIED CARD STYLES --- */
+.sum-frontend-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+.sum-frontend-card { display: flex; flex-direction: column; background: var(--frontend-surface); border-radius: var(--frontend-radius-lg); box-shadow: var(--frontend-shadow); border: 1px solid var(--frontend-border); transition: all 0.3s ease; }
+.sum-frontend-card:hover { transform: translateY(-4px); box-shadow: var(--frontend-shadow-lg); border-color: var(--frontend-primary); }
+.sum-frontend-card-header { display: flex; justify-content: space-between; align-items: center; padding: var(--frontend-spacing); border-bottom: 1px solid var(--frontend-border); }
+.sum-frontend-card-title { display: flex; align-items: center; gap: 0.75rem; }
+.sum-frontend-card-title h3 { margin: 0; font-size: 1.25rem; }
+.sum-frontend-card-status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+.sum-frontend-card-status-badge.available { background-color: #dcfce7; color: #166534; }
+.sum-frontend-card-status-badge.paid { background-color: #dbeafe; color: #1e40af; }
+.sum-frontend-card-status-badge.unpaid { background-color: #fef9c3; color: #854d0e; }
+.sum-frontend-card-status-badge.overdue { background-color: #fee2e2; color: #991b1b; }
+.sum-frontend-card-body { padding: var(--frontend-spacing); flex-grow: 1; display: flex; flex-direction: column; gap: 0.75rem; }
+.sum-frontend-detail-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; }
+.sum-frontend-detail-label { color: var(--frontend-text-muted); }
+.sum-frontend-detail-value { font-weight: 600; font-size: 14px; }
+.sum-frontend-detail-value .customer-email { font-weight: 400; color: var(--frontend-text-muted); font-size: 0.9em; margin-left: 4px; }
+.sum-frontend-period-row { display: flex; justify-content: space-between; background-color: var(--frontend-background); border-radius: var(--frontend-radius); padding: 0.75rem; margin: 0.5rem 0; border: 1px solid var(--frontend-border); }
+.sum-frontend-period-item { text-align: center; flex-basis: 33%; }
+.sum-frontend-period-item .sum-frontend-detail-label { font-size: 0.75rem; text-transform: uppercase; }
+.sum-frontend-period-total .sum-frontend-detail-value { font-weight: 700; color: var(--frontend-primary); }
+.sum-frontend-card-actions { display: flex; gap: 0.5rem; padding: var(--frontend-spacing); border-top: 1px solid var(--frontend-border); background-color: var(--frontend-background); border-radius: 0 0 var(--frontend-radius-lg) var(--frontend-radius-lg); }
+.sum-frontend-card-actions .sum-frontend-btn { padding: 0.5rem 1rem; font-size: 0.875rem; flex-grow: 1; }
+.sum-frontend-card-actions .sum-frontend-btn-icon { flex-grow: 0; width: 50px; }
 
 /* Responsive Design */
 @media (max-width: 768px) {

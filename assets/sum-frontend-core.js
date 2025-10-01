@@ -1,8 +1,10 @@
+// assets/sum-frontend-core.js
 jQuery(document).ready(function($) {
     // Global State Variables
     let units = [];
     let editingUnit = null;
     let currentViewMode = localStorage.getItem('sum_frontend_view_mode') || 'grid';
+    const customerModal = $('#frontend-customer-creation-modal');
     
     // Make utility functions available globally within this scope
     // This assumes sum-ui.js and sum-render.js are loaded before this script, 
@@ -17,6 +19,7 @@ jQuery(document).ready(function($) {
     
     // Load units on page load
     loadUnits();
+    loadCustomersForSelect();
     
     function loadUnits() {
         const $grid = $('#frontend-units-grid');
@@ -50,6 +53,34 @@ jQuery(document).ready(function($) {
             }
         });
     }
+
+    function loadCustomersForSelect(selectCustomerId = null) {
+        const $select = $('#frontend-customer-id');
+        
+        $.ajax({
+            url: sum_frontend_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_get_customers_frontend',
+                nonce: sum_frontend_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    const currentVal = selectCustomerId || $select.val(); 
+                    
+                    $select.empty().append('<option value="">-- Select a Customer --</option>');
+                    
+                    response.data.forEach(customer => {
+                        $select.append(`<option value="${customer.id}">${customer.full_name}</option>`);
+                    });
+
+                    if (currentVal) {
+                        $select.val(currentVal);
+                    }
+                }
+            }
+        });
+    }
     
     // AJAX Functions
     
@@ -80,6 +111,40 @@ jQuery(document).ready(function($) {
             },
             complete: function() {
                 $saveBtn.html(originalText).prop('disabled', false);
+            }
+        });
+    }
+
+    function saveNewCustomer() {
+        const customerData = {
+            id: '', // New customer
+            full_name: $('#frontend-new-customer-name').val(),
+            email: $('#frontend-new-customer-email').val(),
+            phone: $('#frontend-new-customer-phone').val(),
+            whatsapp: $('#frontend-new-customer-whatsapp').val(),
+            full_address: $('#frontend-new-customer-address').val(),
+        };
+
+        $.ajax({
+            url: sum_frontend_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_save_customer_frontend',
+                nonce: sum_frontend_ajax.nonce,
+                customer_data: customerData
+            },
+            success: function(response) {
+                if (response.success) {
+                    customerModal.hide();
+                    $('#frontend-customer-creation-form')[0].reset();
+                    showSuccess('Customer created!');
+                    loadCustomersForSelect(response.data.id);
+                } else {
+                    showError(response.data.message || 'Could not save customer.');
+                }
+            },
+            error: function() {
+                showError('An error occurred while saving the customer.');
             }
         });
     }
@@ -248,6 +313,14 @@ jQuery(document).ready(function($) {
     
     $('#frontend-bulk-add-btn').on('click', function() {
         openBulkModal();
+    });
+
+    // New Customer Modal
+    $('#frontend-create-customer-btn').on('click', () => customerModal.show());
+    $('#frontend-customer-modal-close-btn').on('click', () => customerModal.hide());
+    $('#frontend-customer-creation-form').on('submit', function(e) {
+        e.preventDefault();
+        saveNewCustomer();
     });
     
     // Modal events

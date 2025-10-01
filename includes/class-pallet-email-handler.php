@@ -18,12 +18,34 @@ class SUM_Pallet_Email_Handler {
         // Include PDF generator
         require_once SUM_PLUGIN_PATH . 'includes/class-pallet-pdf-generator.php';
         $this->pdf_generator = new SUM_Pallet_PDF_Generator($pallet_database);
+        
+         // Register the logo shortcode handler
+        add_shortcode('sum_logo', array($this, 'render_logo_shortcode'));
     }
     
     public function init() {
         // Cron hooks for pallet reminders
         add_action('sum_daily_email_check', array($this, 'check_expiring_pallets'));
     }
+    
+     /**
+     * Renders the [sum_logo] shortcode into an HTML img tag.
+     * Uses inline styles for maximum email compatibility.
+     * @return string The HTML for the logo or company name.
+     */
+public function render_logo_shortcode($atts, $content = null) {
+    // Use settings table to avoid wrong property usage
+    global $wpdb;
+    $settings_table = $wpdb->prefix . 'storage_settings';
+    $logo_url = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM {$settings_table} WHERE setting_key = %s", 'company_logo'));
+    $company_name = $wpdb->get_var($wpdb->prepare("SELECT setting_value FROM {$settings_table} WHERE setting_key = %s", 'company_name')) ?: 'Your Company Name';
+
+    if (empty($logo_url)) {
+        return '<span style="font-size:24px;font-weight:700;color:#333;">' . esc_html($company_name) . '</span>';
+    }
+    return '<img src="'.esc_url($logo_url).'" alt="'.esc_attr($company_name).'"
+         width="150" style="max-width:150px;height:auto;border:0;display:block;margin:0 auto;" />';
+}
     
     public function check_expiring_pallets() {
         // Get main database for settings
@@ -71,7 +93,7 @@ class SUM_Pallet_Email_Handler {
         
         // Replace placeholders
         $placeholders = array(
-            '{customer_name}' => $pallet['primary_contact_name'],
+            '{customer_name}' => $pallet['customer_name'],
             '{unit_name}' => $pallet['pallet_name'],
             '{unit_size}' => $pallet['pallet_type'] . ' Pallet (' . $pallet['charged_height'] . 'm)',
             '{period_until}' => $pallet['period_until'],
@@ -106,8 +128,8 @@ public function send_invoice_email($pallet) {
     $customer_email = isset($pallet['email']) ? trim($pallet['email']) : '';
 
     // Fallback to the old primary_contact_email field for backward compatibility.
-    if (empty($customer_email) && isset($pallet['primary_contact_email'])) {
-        $customer_email = trim($pallet['primary_contact_email']);
+    if (empty($customer_email) && isset($pallet['customer_email'])) {
+        $customer_email = trim($pallet['customer_email']);
     }
     // --- END OF UPDATED LOGIC ---
     
@@ -186,7 +208,7 @@ public function send_invoice_email($pallet) {
     if (!$company_name) $company_name = 'Self Storage Cyprus';
 
     // --- UPDATED: Use the correct customer name field ---
-    $customer_name = isset($pallet['full_name']) ? $pallet['full_name'] : (isset($pallet['primary_contact_name']) ? $pallet['primary_contact_name'] : '');
+    $customer_name = isset($pallet['full_name']) ? $pallet['full_name'] : (isset($pallet['customer_name']) ? $pallet['customer_name'] : '');
 
     // Replace placeholders
     $placeholders = array(
@@ -195,14 +217,20 @@ public function send_invoice_email($pallet) {
         '{unit_size}'      => (isset($pallet['pallet_type']) ? $pallet['pallet_type'] : '') . ' Pallet (' . (isset($pallet['charged_height']) ? $pallet['charged_height'] : '') . 'm)',
         '{monthly_price}'  => number_format($monthly_price, 2),
         '{payment_amount}' => number_format($payment_amount, 2),
-        '{payment_link}'   => $payment_link,
+        '{payment_link}'   => esc_url($payment_link), 
         '{period_from}'    => isset($pallet['period_from']) ? $pallet['period_from'] : '',
         '{period_until}'   => isset($pallet['period_until']) ? $pallet['period_until'] : '',
         '{payment_status}' => isset($pallet['payment_status']) ? ucfirst($pallet['payment_status']) : 'Pending',
         '{company_name}'   => $company_name,
     );
 
-    $body = str_replace(array_keys($placeholders), array_values($placeholders), $body_template);
+    // Build body safely
+$body = str_replace(array_keys($placeholders), array_values($placeholders), $body_template);
+$body = do_shortcode($body);          // ✅ render [sum_logo]
+$body = force_balance_tags($body);    // ✅ fix any unclosed tags
+if (stripos($body, '<table') === false && stripos($body, '<a ') === false) {
+    $body = wpautop($body);
+}
 
     // Generate PDF invoice (optional)
     $pdf_content = $this->pdf_generator->generate_invoice_pdf($pallet);

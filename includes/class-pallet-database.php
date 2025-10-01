@@ -387,14 +387,54 @@ public function save_pallet($data) {
 
     // ---------------- Reminders ----------------
 
-    public function get_expiring_pallets($days) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_pallets';
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name 
-             WHERE period_until = DATE_ADD(CURDATE(), INTERVAL %d DAY)
-             AND primary_contact_email != ''",
-            (int)$days
-        ), ARRAY_A);
+/**
+ * Pallets that still belong to a customer and whose period ended before today.
+ */
+public function get_expired_but_occupied_pallets(): array {
+    global $wpdb;
+    $t = $wpdb->prefix . 'storage_pallets';
+    // If you track a status column, add AND status='active'
+    $rows = $wpdb->get_results("
+        SELECT * FROM {$t}
+        WHERE customer_id IS NOT NULL
+          AND period_until < CURDATE()
+    ", ARRAY_A);
+    return is_array($rows) ? $rows : [];
+}
+
+/**
+ * Renew a pallet for the next month (inclusive period).
+ * New period: (period_from = old_until + 1 day),
+ *             (period_until = period_from + 1 month - 1 day)
+ */
+public function renew_pallet_for_next_period( int $pallet_id ) {
+    global $wpdb;
+    $t = $wpdb->prefix . 'storage_pallets';
+
+    $current_until = $wpdb->get_var($wpdb->prepare("SELECT period_until FROM {$t} WHERE id = %d", $pallet_id));
+    if (!$current_until) return false;
+
+    try {
+        $from = new DateTime($current_until, wp_timezone()); // ‘Y-m-d’
+        $from->modify('+1 day');
+
+        $until = clone $from;
+        $until->modify('+1 month')->modify('-1 day'); // inclusive end
+
+        return $wpdb->update(
+            $t,
+            [
+                'period_from'    => $from->format('Y-m-d'),
+                'period_until'   => $until->format('Y-m-d'),
+                'payment_status' => 'unpaid',
+            ],
+            ['id' => $pallet_id],
+            ['%s','%s','%s'],
+            ['%d']
+        );
+    } catch (\Throwable $e) {
+        error_log('SUM Pallet Renew error: ' . $e->getMessage());
+        return false;
     }
+ }
 }

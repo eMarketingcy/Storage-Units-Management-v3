@@ -11,6 +11,7 @@ class SUM_Email_Handler {
     
     private $database;
     private $pdf_generator;
+    private $customer_database;
     
     public function __construct($database) {
         $this->database = $database;
@@ -18,6 +19,10 @@ class SUM_Email_Handler {
         // Include PDF generator
         require_once SUM_PLUGIN_PATH . 'includes/class-pdf-generator.php';
         $this->pdf_generator = new SUM_PDF_Generator($database);
+
+        if (class_exists('SUM_Customer_Database')) {
+            $this->customer_database = new SUM_Customer_Database();
+        }
         
         // Register the logo shortcode handler
         add_shortcode('sum_logo', array($this, 'render_logo_shortcode'));
@@ -66,6 +71,14 @@ class SUM_Email_Handler {
 
     
     public function send_reminder_email($unit, $days) {
+        if (isset($unit['customer_id']) && $this->customer_database) {
+            $customer = $this->customer_database->get_customer($unit['customer_id']);
+            if ($customer) {
+                $unit['primary_contact_name'] = $customer['full_name'];
+                $unit['primary_contact_email'] = $customer['email'];
+            }
+        }
+        
         $customer_email = $unit['primary_contact_email'];
         if (empty($customer_email)) {
             return false;
@@ -108,6 +121,14 @@ class SUM_Email_Handler {
     }
     
 public function send_invoice_email($unit) {
+    if (isset($unit['customer_id']) && $this->customer_database) {
+        $customer = $this->customer_database->get_customer($unit['customer_id']);
+        if ($customer) {
+            $unit['primary_contact_name'] = $customer['full_name'];
+            $unit['primary_contact_email'] = $customer['email'];
+        }
+    }
+
     $customer_email = isset($unit['primary_contact_email']) ? $unit['primary_contact_email'] : '';
     if (empty($customer_email)) {
         return false;

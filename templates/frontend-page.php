@@ -1,4 +1,6 @@
 <?php
+// templates/frontend-page.php
+
 // Check if user is logged in and has proper role
 if (!is_user_logged_in()) {
     echo '<div class="sum-frontend-login-required">';
@@ -73,7 +75,7 @@ if (!$user_has_access) {
             </a>
             <a href="<?php echo home_url('/storage-customers/'); ?>" class="sum-frontend-nav-item">
                 <span class="sum-frontend-nav-icon">👪</span>
-                <span>Custommers</span>
+                <span>Customers</span>
             </a>
         </div>
         
@@ -193,18 +195,36 @@ if (!$user_has_access) {
             <input type="hidden" id="frontend-unit-id" name="unit_id">
             
             <div class="sum-frontend-form-section">
-                        <h3>👤 Linked Customer</h3>
-                        <input type="hidden" id="frontend-customer-id" name="customer_id" value=""> 
-                        
-                        <div class="sum-frontend-form-grid">
-                            <div class="sum-frontend-form-group full-width">
-                                <label>Customer Link Status</label>
-                                <p id="frontend-customer-display-info" class="sum-frontend-customer-info-placeholder">
-                                    Customer data is managed centrally and linked via the system.
-                                </p>
-                            </div>
-                        </div>
+                <h3>📦 Unit Information</h3>
+                <div class="sum-frontend-form-grid">
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-unit-name">Unit Name</label>
+                        <input type="text" id="frontend-unit-name" name="unit_name" required placeholder="e.g., A1, B2, D2">
                     </div>
+                    
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-size">Size</label>
+                        <input type="text" id="frontend-size" name="size" placeholder="e.g., Small, Medium, Large">
+                    </div>
+                    
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-sqm">Square Meters</label>
+                        <input type="number" id="frontend-sqm" name="sqm" step="0.1" placeholder="e.g., 10.5">
+                    </div>
+                    
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-monthly-price">Monthly Price (€)</label>
+                        <input type="number" id="frontend-monthly-price" name="monthly_price" step="0.01" min="0" placeholder="e.g., 100.00">
+                    </div>
+                    
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-website-name">Website Name</label>
+                        <input type="text" id="frontend-website-name" name="website_name" placeholder="Name as shown on website">
+                    </div>
+                </div>
+            </div>
+            
+            
             
             <div class="sum-frontend-form-section">
                 <div class="sum-frontend-occupancy-toggle">
@@ -239,27 +259,32 @@ if (!$user_has_access) {
                     </div>
                     
                     <div class="sum-frontend-form-section">
-                        <h3>👤 Primary Contact</h3>
-                        <div class="sum-frontend-form-grid">
+                        <h3>👤 Primary Customer Link</h3>
+                        <div class="sum-frontend-form-group-flex">
                             <div class="sum-frontend-form-group">
-                                <label for="frontend-primary-name">Full Name</label>
-                                <input type="text" id="frontend-primary-name" name="primary_contact_name" placeholder="John Doe">
+                                <label for="frontend-customer-id">Select Existing Customer *</label>
+                                <select id="frontend-customer-id" name="customer_id" class="sum-select-customer" required>
+                                    <option value="">-- Select Customer --</option>
+                                    <?php
+                                    if (isset($customer_database)) {
+                                        $customers = $customer_database->get_customers();
+                                        foreach ($customers as $customer) {
+                                            printf(
+                                                '<option value="%d" data-email="%s">%s (ID: %d | %s)</option>',
+                                                esc_attr($customer['id']),
+                                                esc_attr($customer['email']),
+                                                esc_html($customer['full_name']),
+                                                esc_attr($customer['id']),
+                                                esc_html($customer['email'])
+                                            );
+                                        }
+                                    }
+                                    ?>
+                                </select>
                             </div>
-                            
-                            <div class="sum-frontend-form-group">
-                                <label for="frontend-primary-phone">Phone</label>
-                                <input type="tel" id="frontend-primary-phone" name="primary_contact_phone" placeholder="+357 99 123456">
-                            </div>
-                            
-                            <div class="sum-frontend-form-group">
-                                <label for="frontend-primary-whatsapp">WhatsApp</label>
-                                <input type="tel" id="frontend-primary-whatsapp" name="primary_contact_whatsapp" placeholder="+357 99 123456">
-                            </div>
-                            
-                            <div class="sum-frontend-form-group">
-                                <label for="frontend-primary-email">Email</label>
-                                <input type="email" id="frontend-primary-email" name="primary_contact_email" placeholder="john@example.com">
-                            </div>
+                            <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary" id="frontend-create-customer-btn" style="align-self: flex-end; margin-bottom: 3px;">
+                                <span class="dashicons dashicons-plus"></span> New Customer
+                            </button>
                         </div>
                     </div>
                     
@@ -368,5 +393,48 @@ if (!$user_has_access) {
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<div id="frontend-customer-creation-modal" class="sum-frontend-modal" style="display: none;">
+    <div class="sum-frontend-modal-overlay"></div>
+    <div class="sum-frontend-modal-content">
+        <div class="sum-frontend-modal-header">
+            <h2>Create New Customer</h2>
+            <button type="button" class="sum-frontend-modal-close" id="frontend-customer-modal-close-btn">&times;</button>
+        </div>
+        <div class="sum-frontend-modal-body">
+            <form id="frontend-customer-creation-form">
+                <div class="sum-frontend-form-grid">
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-new-customer-name">Full Name *</label>
+                        <input type="text" id="frontend-new-customer-name" required>
+                    </div>
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-new-customer-email">Email *</label>
+                        <input type="email" id="frontend-new-customer-email" required>
+                    </div>
+                </div>
+                <div class="sum-frontend-form-grid">
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-new-customer-phone">Phone</label>
+                        <input type="tel" id="frontend-new-customer-phone">
+                    </div>
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-new-customer-whatsapp">WhatsApp</label>
+                        <input type="tel" id="frontend-new-customer-whatsapp">
+                    </div>
+                </div>
+                <div class="sum-frontend-form-grid">
+                    <div class="sum-frontend-form-group">
+                        <label for="frontend-new-customer-address">Full Address</label>
+                        <textarea id="frontend-new-customer-address" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="sum-frontend-form-actions">
+                     <button type="submit" class="sum-frontend-btn sum-frontend-btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

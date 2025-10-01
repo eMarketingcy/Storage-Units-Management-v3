@@ -33,7 +33,7 @@ function getFilteredUnits(units) {
         
         const matchesSearch = unit.unit_name.toLowerCase().includes(searchTerm) ||
                             (unit.website_name && unit.website_name.toLowerCase().includes(searchTerm)) ||
-                            (unit.primary_contact_name && unit.primary_contact_name.toLowerCase().includes(searchTerm));
+                            (unit.customer_name && unit.customer_name.toLowerCase().includes(searchTerm));
         
         let matchesFilter = true;
         
@@ -105,6 +105,29 @@ function renderUnits() {
     bindEvents();
 }
 
+/**
+ * Calculates the number of occupied months between two dates.
+ */
+function calculateOccupiedMonths(startDateStr, endDateStr) {
+    if (!startDateStr || !endDateStr) return 0;
+    try {
+        const startDate = new Date(startDateStr);
+        const endDate = new Date(endDateStr);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate < startDate) return 0;
+        const startYear = startDate.getFullYear();
+        const startMonth = startDate.getMonth();
+        const endYear = endDate.getFullYear();
+        const endMonth = endDate.getMonth();
+        return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
+    } catch (e) { return 0; }
+}
+
+const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 function renderUnitRow(unit) {
     const isOccupied = parseInt(unit.is_occupied);
     const monthlyPrice = unit.monthly_price ? `€${parseFloat(unit.monthly_price).toFixed(2)}` : 'N/A';
@@ -152,107 +175,123 @@ function renderUnitRow(unit) {
     `;
 }
 
+
 function renderUnitCard(unit) {
-    const isOccupied = parseInt(unit.is_occupied);
-    const monthlyPrice = unit.monthly_price ? `€${parseFloat(unit.monthly_price).toFixed(2)}/month` : '';
-    const statusText = isOccupied ? 'Occupied' : 'Available';
-    const statusClass = isOccupied ? 'sum-frontend-status-occupied' : 'sum-frontend-status-available';
-    
-    // Payment status badge
-    let paymentBadge = '';
-    if (isOccupied) {
-        const paymentStatus = unit.payment_status || 'paid';
-        const badgeClass = paymentStatus === 'paid' ? 'sum-frontend-badge-paid' : 
-                          paymentStatus === 'overdue' ? 'sum-frontend-badge-overdue' : 'sum-frontend-badge-unpaid';
-        const badgeIcon = paymentStatus === 'paid' ? '✅' : paymentStatus === 'overdue' ? '⚠️' : '⏳';
-        paymentBadge = `<span class="sum-frontend-badge ${badgeClass}">${badgeIcon} ${paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}</span>`;
-    }
-    
-    // Check if past due
-    let pastDueBadge = '';
-    if (isOccupied && unit.period_until) {
-        const today = new Date();
-        const endDate = new Date(unit.period_until);
-        if (endDate < today) {
-            pastDueBadge = '<span class="sum-frontend-badge sum-frontend-badge-past-due">⚠️ Past Due</span>';
-        }
-    }
-    
-    let contactInfo = '';
-    if (isOccupied && unit.primary_contact_name) {
-        contactInfo = `
-            <div class="sum-frontend-contact-info">
-                <div class="sum-frontend-contact-section">
-                    <h4>👤 Primary Contact</h4>
-                    <div class="sum-frontend-contact-details">
-                        <div class="sum-frontend-contact-item">
-                            <span class="sum-frontend-contact-label">Name:</span>
-                            <span class="sum-frontend-contact-value">${unit.customer_name}</span>
-                        </div>
-                        <div class="sum-frontend-contact-item">
-                            <span class="sum-frontend-contact-label">Email:</span>
-                            <span class="sum-frontend-contact-value">${unit.customer_email || 'N/A'}</span>
-                        </div>
-                        <div class="sum-frontend-contact-item">
-                            <span class="sum-frontend-contact-label">Phone:</span>
-                            <span class="sum-frontend-contact-value">${unit.customer_phone || 'N/A'}</span>
-                        </div>
-                        ${unit.period_from && unit.period_until ? `
-                            <div class="sum-frontend-contact-item">
-                                <span class="sum-frontend-contact-label">Period:</span>
-                                <span class="sum-frontend-contact-value">${unit.period_from} - ${unit.period_until}</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                    ${unit.primary_contact_email ? `
-                        <div class="sum-frontend-contact-actions">
-                            <button type="button" class="sum-frontend-contact-btn sum-frontend-contact-btn-invoice frontend-send-invoice-btn" data-unit-id="${unit.id}">
-                                📧 Send Invoice
-                            </button>
-                            <button type="button" class="sum-frontend-contact-btn sum-frontend-contact-btn-pdf frontend-regenerate-pdf-btn" data-unit-id="${unit.id}">
-                                📄 PDF
-                            </button>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    }
-    
-    return `
-        <div class="sum-frontend-card">
-            <div class="sum-frontend-card-header">
-                <div class="sum-frontend-card-title">
-                    <div class="sum-frontend-card-info">
-                        <h3>📦 ${unit.unit_name}</h3>
-                        <p>${unit.size ? unit.size : ''}${unit.sqm ? ` • ${unit.sqm} m²` : ''}${monthlyPrice ? ` • ${monthlyPrice}` : ''}</p>
-                        ${unit.website_name ? `<p><strong>Website:</strong> ${unit.website_name}</p>` : ''}
-                    </div>
-                    <div class="sum-frontend-card-actions">
-                        <button type="button" class="sum-frontend-card-btn frontend-edit-unit" data-unit-id="${unit.id}" title="Edit">✏️</button>
-                        <button type="button" class="sum-frontend-card-btn frontend-delete-unit" data-unit-id="${unit.id}" title="Delete">🗑️</button>
-                    </div>
-                </div>
-                <div class="sum-frontend-badges">
-                    ${paymentBadge}
-                    ${pastDueBadge}
-                </div>
-                <div class="sum-frontend-unit-status">
-                    <span class="${statusClass}">${statusText}</span>
-                    <div class="sum-frontend-toggle-wrapper">
-                        <input type="checkbox" class="sum-frontend-toggle-input frontend-toggle-occupancy" 
-                               id="frontend-toggle-${unit.id}" data-unit-id="${unit.id}" ${isOccupied ? 'checked' : ''}>
-                        <label for="frontend-toggle-${unit.id}" class="sum-frontend-toggle-label">
-                            <span class="sum-frontend-toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            ${contactInfo}
+  const esc = (v) =>
+    String(v ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const isAssigned = Boolean(Number(unit.is_occupied) || unit.customer_id);
+  const totalMonths = calculateOccupiedMonths(unit.period_from, unit.period_until);
+
+  // --- status mapping (snake_case → Title Case) ---
+  const rawStatus = isAssigned ? (unit.payment_status || 'occupied') : 'available';
+  const statusMap = { paid: 'paid', unpaid: 'unpaid', overdue: 'overdue', assigned: 'assigned', occupied: 'assigned', available: 'available' };
+  const statusClass = statusMap[rawStatus] || 'assigned';
+  const statusText = esc(rawStatus.replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase()));
+
+  // --- size / area ---
+  const sizeInfo = [unit.size, unit.sqm ? `${esc(unit.sqm)} m²` : null].filter(Boolean).join(' / ');
+
+  // --- customer fields (canonical first, then fallbacks) ---
+  const customerName =
+    unit.full_name ||
+    unit.customer_name ||
+    unit.primary_contact_name ||
+    'N/A';
+
+  const customerEmail =
+    unit.email ||
+    unit.customer_email ||
+    unit.primary_contact_email ||
+    '';
+
+  // --- currency formatting ---
+  const currency =
+    unit.currency ||
+    (window.sumSettings && window.sumSettings.currency) ||
+    'EUR';
+  let priceText = '';
+  try {
+    priceText = new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(parseFloat(unit.monthly_price || 0));
+  } catch {
+    // Fallback to symbol heuristic if Intl or code is odd
+    const sym = currency === 'USD' ? '$' : currency === 'GBP' ? '£' : '€';
+    priceText = sym + parseFloat(unit.monthly_price || 0).toFixed(2);
+  }
+
+  const canEmail = isAssigned && !!customerEmail;
+
+  return `
+    <div class="sum-frontend-card" data-unit-id="${esc(unit.id)}" data-customer-id="${esc(unit.customer_id || '')}">
+      <div class="sum-frontend-card-header">
+        <div class="sum-frontend-card-title">
+          <span class="sum-frontend-icon">📦</span>
+          <h3>${esc(unit.unit_name)}</h3>
         </div>
-    `;
+        <div class="sum-frontend-card-status-badge ${esc(statusClass)}">${statusText}</div>
+      </div>
+
+      <div class="sum-frontend-card-body">
+        <div class="sum-frontend-detail-row">
+          <span class="sum-frontend-detail-label">Customer</span>
+          <span class="sum-frontend-detail-value">
+            ${isAssigned
+              ? `${esc(customerName)}`
+              : '—'}
+          </span>
+        </div>
+
+        <div class="sum-frontend-detail-row">
+          <span class="sum-frontend-detail-label">Size</span>
+          <span class="sum-frontend-detail-value">${sizeInfo || 'N/A'}</span>
+        </div>
+
+        <div class="sum-frontend-period-row">
+          <div class="sum-frontend-period-item">
+            <span class="sum-frontend-detail-label">From</span><br/>
+            <span class="sum-frontend-detail-value">${formatDate(unit.period_from) || '—'}</span>
+          </div>
+          <div class="sum-frontend-period-item">
+            <span class="sum-frontend-detail-label">Until</span><br/>
+            <span class="sum-frontend-detail-value">${formatDate(unit.period_until) || '—'}</span>
+          </div>
+          <div class="sum-frontend-period-item sum-frontend-period-total">
+            <span class="sum-frontend-detail-label">Total</span><br/>
+            <span class="sum-frontend-detail-value">${
+              totalMonths > 0 ? `${totalMonths} ${totalMonths > 1 ? 'Months' : 'Month'}` : '—'
+            }</span>
+          </div>
+        </div>
+
+        <div class="sum-frontend-detail-row">
+          <span class="sum-frontend-detail-label">Price</span>
+          <span class="sum-frontend-detail-value">${priceText} / mo</span>
+        </div>
+      </div>
+
+      <div class="sum-frontend-card-actions">
+        <button type="button"
+                class="sum-frontend-btn sum-frontend-btn-icon frontend-regenerate-pdf-btn"
+                data-unit-id="${esc(unit.id)}"
+                title="Download PDF">📄</button>
+
+        <button type="button"
+                class="sum-frontend-btn sum-frontend-btn-icon frontend-send-invoice-btn ${canEmail ? '' : 'is-disabled'}"
+                data-unit-id="${esc(unit.id)}"
+                ${canEmail ? '' : 'disabled'}
+                title="${canEmail ? 'Send Invoice' : 'No customer email'}">✉️</button>
+
+        <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary frontend-edit-unit" data-unit-id="${esc(unit.id)}">Edit</button>
+        <button type="button" class="sum-frontend-btn sum-frontend-btn-danger frontend-delete-unit" data-unit-id="${esc(unit.id)}">Delete</button>
+      </div>
+    </div>`;
 }
+
 
 function bindEvents() {
     const $ = jQuery;

@@ -22,7 +22,7 @@ if (!$user_has_access) {
     <div class="sum-frontend-main">
         <div class="sum-frontend-header-content">
             <div class="sum-frontend-title-section">
-                <div class="sum-frontend-icon">👪</div>
+                <div class="sum-frontend-icon">ðŸ‘ª</div>
                 <div class="sum-frontend-title-text">
                     <h1>Customer Manager</h1>
                     <p>View, edit, and manage all your customers</p>
@@ -34,7 +34,7 @@ if (!$user_has_access) {
                         <span class="sum-frontend-user-role"><?php echo esc_html(implode(', ', $current_user->roles)); ?></span>
                     </div>
                     <a href="<?php echo wp_logout_url(get_permalink()); ?>" class="sum-frontend-logout-btn">
-                        <span class="sum-frontend-logout-icon">🚪</span>
+                        <span class="sum-frontend-logout-icon">ðŸšª</span>
                         Logout
                     </a>
                 </div>
@@ -42,15 +42,15 @@ if (!$user_has_access) {
 
         <div class="sum-frontend-navigation">
             <a href="<?php echo home_url('/storage-units-manager/'); ?>" class="sum-frontend-nav-item">
-                <span class="sum-frontend-nav-icon">📦</span>
+                <span class="sum-frontend-nav-icon">ðŸ“¦</span>
                 <span>Storage Units</span>
             </a>
             <a href="<?php echo home_url('/storage-pallets-manager/'); ?>" class="sum-frontend-nav-item">
-                <span class="sum-frontend-nav-icon">🟠</span>
+                <span class="sum-frontend-nav-icon">ðŸŸ </span>
                 <span>Pallet Storage</span>
             </a>
             <div class="sum-frontend-nav-item sum-frontend-nav-active">
-                <span class="sum-frontend-nav-icon">👪</span>
+                <span class="sum-frontend-nav-icon">ðŸ‘ª</span>
                 <span>Customers</span>
             </div>
         </div>
@@ -64,11 +64,11 @@ if (!$user_has_access) {
             </div>
             <div class="sum-frontend-action-group">
                  <div class="sum-frontend-view-toggle">
-                    <button type="button" class="sum-frontend-btn sum-view-grid active" id="frontend-view-grid" title="Grid View">▦</button>
-                    <button type="button" class="sum-frontend-btn sum-view-list" id="frontend-view-list" title="List View">📋</button>
+                    <button type="button" class="sum-frontend-btn sum-view-grid active" id="frontend-view-grid" title="Grid View">â–¦</button>
+                    <button type="button" class="sum-frontend-btn sum-view-list" id="frontend-view-list" title="List View">ðŸ“‹</button>
                 </div>
                 <button type="button" class="sum-frontend-btn sum-frontend-btn-primary" id="frontend-add-customer-btn">
-                    <span>➕</span> Add Customer
+                    <span>âž•</span> Add Customer
                 </button>
             </div>
         </div>
@@ -102,21 +102,41 @@ if (!$user_has_access) {
     <div class="sum-frontend-modal-content">
         <div class="sum-frontend-modal-header">
             <h2 id="frontend-modal-title">Add New Customer</h2>
-            <button type="button" class="sum-frontend-modal-close">✕</button>
+            <button type="button" class="sum-frontend-modal-close">âœ•</button>
         </div>
         <form id="frontend-customer-form" class="sum-frontend-form">
-            <input type="hidden" id="frontend-customer-id" name="id">
-            <div class="sum-frontend-form-grid">
-                <div class="sum-frontend-form-group"><label for="frontend-full-name">Full Name *</label><input type="text" id="frontend-full-name" name="full_name" required></div>
-                <div class="sum-frontend-form-group"><label for="frontend-email">Email *</label><input type="email" id="frontend-email" name="email" required></div>
-                <div class="sum-frontend-form-group"><label for="frontend-phone">Phone</label><input type="tel" id="frontend-phone" name="phone"></div>
-                <div class="sum-frontend-form-group"><label for="frontend-whatsapp">WhatsApp</label><input type="tel" id="frontend-whatsapp" name="whatsapp"></div>
+    <input type="hidden" id="frontend-customer-id" name="id">
+    
+    <div class="sum-frontend-form-section">
+        <h3>👤 Customer Details</h3>
+        <div class="sum-frontend-form-grid">
+            <div class="sum-frontend-form-group"><label for="frontend-full-name">Full Name *</label><input type="text" id="frontend-full-name" name="full_name" required></div>
+            <div class="sum-frontend-form-group"><label for="frontend-email">Email *</label><input type="email" id="frontend-email" name="email" required></div>
+            <div class="sum-frontend-form-group"><label for="frontend-phone">Phone</label><input type="tel" id="frontend-phone" name="phone"></div>
+            <div class="sum-frontend-form-group"><label for="frontend-whatsapp">WhatsApp</label><input type="tel" id="frontend-whatsapp" name="whatsapp"></div>
+        </div>
+        <div class="sum-frontend-form-group"><label for="frontend-full-address">Full Address</label><textarea id="frontend-full-address" name="full_address" rows="2"></textarea></div>
+    </div>
+
+    <div class="sum-frontend-form-section">
+        <h3>📄 Documentation</h3>
+        <div class="sum-frontend-form-grid">
+            <div class="sum-frontend-form-group">
+                <label for="frontend-upload-id">ID Document URL</label>
+                <input type="text" id="frontend-upload-id" name="upload_id" placeholder="Paste link to ID file...">
             </div>
-            <div class="sum-frontend-form-group"><label for="frontend-full-address">Full Address</label><textarea id="frontend-full-address" name="full_address" rows="3"></textarea></div>
-            <div class="sum-frontend-form-actions">
-                <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary" id="frontend-cancel-btn">Cancel</button>
-                <button type="submit" class="sum-frontend-btn sum-frontend-btn-primary">Save Customer</button>
+            <div class="sum-frontend-form-group">
+                <label for="frontend-utility-bill">Utility Bill URL</label>
+                <input type="text" id="frontend-utility-bill" name="utility_bill" placeholder="Paste link to bill file...">
             </div>
-        </form>
+        </div>
+        <small>Note: Upload files to your WordPress Media Library and paste the URLs here.</small>
+    </div>
+
+    <div class="sum-frontend-form-actions">
+        <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary" id="frontend-cancel-btn">Cancel</button>
+        <button type="submit" class="sum-frontend-btn sum-frontend-btn-primary">Save Customer</button>
+    </div>
+</form>
     </div>
 </div>

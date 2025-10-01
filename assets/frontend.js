@@ -78,6 +78,7 @@ jQuery(document).ready(function($) {
     
     // Load units on page load
     loadUnits();
+    loadCustomersForSelect();
     
     // Define the missing filterUnits function
     function filterUnits() {
@@ -478,6 +479,7 @@ jQuery(document).ready(function($) {
         $('#frontend-sqm').val(unit.sqm || '');
         $('#frontend-monthly-price').val(unit.monthly_price || '');
         $('#frontend-website-name').val(unit.website_name || '');
+        $('#frontend-unit-customer-id').val(unit.customer_id || '');
         $('#frontend-is-occupied').prop('checked', parseInt(unit.is_occupied));
         $('#frontend-period-from').val(unit.period_from || '');
         $('#frontend-period-until').val(unit.period_until || '');
@@ -689,4 +691,27 @@ jQuery(document).ready(function($) {
             }
         });
     }
+    
+    // in /assets/frontend.js
+
+function loadCustomersForSelect() {
+    const $select = $('#frontend-unit-customer-id');
+
+    // Use the AJAX object defined in your main script file
+    $.ajax({
+        url: sum_frontend_ajax.ajax_url, 
+        type: 'POST',
+        data: {
+            action: 'sum_get_customers_frontend', // A new AJAX action we'll add
+            nonce: sum_frontend_ajax.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                response.data.forEach(customer => {
+                    $select.append(`<option value="${customer.id}">${customer.full_name}</option>`);
+                });
+            }
+        }
+    });
+}
 });

@@ -141,11 +141,25 @@ public function create_tables() {
             PRIMARY KEY (id),
             UNIQUE KEY setting_key (setting_key)
         ) $charset_collate;";
+        
+        // --- NEW: Notification Log Table ---
+    $log_table = $wpdb->prefix . 'sum_notifications_log';
+    $log_sql = "CREATE TABLE {$log_table} (
+        id bigint unsigned NOT NULL AUTO_INCREMENT,
+        customer_id bigint unsigned NOT NULL,
+        type varchar(20) NOT NULL,
+        target_date date NOT NULL,
+        sent_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY uniq_customer_type_date (customer_id, type, target_date)
+    ) {$charset_collate};";
+    // --- END NEW ---
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql); // For storage_units
         dbDelta($customers_sql); // For storage_customers (NEW)
         dbDelta($settings_sql); // For storage_settings
+        dbDelta($log_sql); // Run dbDelta for the new log table
 
         // Also ensure VAT keys after (in case create_tables is called later)
         $this->ensure_vat_settings();
@@ -177,8 +191,26 @@ public function get_units($filter = 'all') {
     }
     public function get_unit($unit_id) {
         global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_units';
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $unit_id), ARRAY_A);
+        $units_table = $wpdb->prefix . 'storage_units';
+        $customers_table = $wpdb->prefix . 'storage_customers';
+        
+         $sql = $wpdb->prepare(
+        "SELECT p.*, c.full_name, c.email, c.phone, c.whatsapp, c.full_address
+         FROM {$units_table} p
+         LEFT JOIN {$customers_table} c ON p.customer_id = c.id
+         WHERE p.id = %d",
+        (int)$unit_id
+    );
+
+    return $wpdb->get_row($sql, ARRAY_A);
+    
+        //return $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $unit_id), ARRAY_A);
+    }
+    
+    public function get_unit_for_pdf($unit_id) {
+        // This new function simply calls your existing get_unit method,
+        // which already contains the correct logic to join customer data.
+        return $this->get_unit($unit_id);
     }
 
     public function get_unit_payment_token($unit_id) {
@@ -197,47 +229,55 @@ public function get_units($filter = 'all') {
         return $tok;
     }
 
+// in /includes/class-database.php
+
 public function save_unit($data) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_units';
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'storage_units';
 
-        $unit_id = intval($data['unit_id'] ?? 0);
+    $unit_id = intval($data['unit_id'] ?? 0);
 
-        $unit_data = array(
-            'unit_name' => sanitize_text_field($data['unit_name']),
-            'size' => sanitize_text_field($data['size'] ?? ''),
-            'sqm' => floatval($data['sqm'] ?? 0) ?: null,
-            'monthly_price' => floatval($data['monthly_price'] ?? 0) ?: null,
-            'website_name' => sanitize_text_field($data['website_name'] ?? ''),
-            'is_occupied' => intval($data['is_occupied'] ?? 0),
-            // --- NEW: Use customer ID as the foreign key ---
-            'customer_id' => intval($data['customer_id'] ?? 0) ?: null, 
-            // ------------------------------------------------
-            'period_from' => sanitize_text_field($data['period_from'] ?? '') ?: null,
-            'period_until' => sanitize_text_field($data['period_until'] ?? '') ?: null,
-            'payment_status' => sanitize_text_field($data['payment_status'] ?? 'paid'),
-            // NOTE: The primary contact fields are removed here as they are now managed in the customer table.
-            // Secondary contacts often remain tied to the unit, so they stay.
-            'secondary_contact_name' => sanitize_text_field($data['secondary_contact_name'] ?? ''),
-            'secondary_contact_phone' => sanitize_text_field($data['secondary_contact_phone'] ?? ''),
-            'secondary_contact_whatsapp' => sanitize_text_field($data['secondary_contact_whatsapp'] ?? ''),
-            'secondary_contact_email' => sanitize_email($data['secondary_contact_email'] ?? '')
-        );
-
-        // Update format array:
-        // Original format had 17 items: 13 for unit details + 4 for primary contacts
-        // New format has 14 items: 13 for unit details + 1 for customer_id (primary contacts removed)
-        $format = array('%s', '%s', '%f', '%f', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'); 
+    $unit_data = array(
+        'unit_name' => sanitize_text_field($data['unit_name']),
+        'size' => sanitize_text_field($data['size'] ?? ''),
+        'sqm' => floatval($data['sqm'] ?? 0) ?: null,
+        'monthly_price' => floatval($data['monthly_price'] ?? 0) ?: null,
+        'website_name' => sanitize_text_field($data['website_name'] ?? ''),
+        'is_occupied' => intval($data['is_occupied'] ?? 0),
+        'customer_id' => intval($data['customer_id'] ?? 0) ?: null,
+        'period_from' => sanitize_text_field($data['period_from'] ?? '') ?: null,
+        'period_until' => sanitize_text_field($data['period_until'] ?? '') ?: null,
+        'payment_status' => sanitize_text_field($data['payment_status'] ?? 'paid'),
         
-        if ($unit_id > 0) {
-            // Existing unit update
-            return $wpdb->update($table_name, $unit_data, array('id' => $unit_id), $format, array('%d'));
-        } else {
-            // New unit insert
-            return $wpdb->insert($table_name, $unit_data, $format);
-        }
-    }    
-    public function delete_unit($unit_id) {
+        // --- FIX: Added primary contact fields back into the save array ---
+        'primary_contact_name' => sanitize_text_field($data['primary_contact_name'] ?? ''),
+        'primary_contact_phone' => sanitize_text_field($data['primary_contact_phone'] ?? ''),
+        'primary_contact_whatsapp' => sanitize_text_field($data['primary_contact_whatsapp'] ?? ''),
+        'primary_contact_email' => sanitize_email($data['primary_contact_email'] ?? ''),
+        
+        'secondary_contact_name' => sanitize_text_field($data['secondary_contact_name'] ?? ''),
+        'secondary_contact_phone' => sanitize_text_field($data['secondary_contact_phone'] ?? ''),
+        'secondary_contact_whatsapp' => sanitize_text_field($data['secondary_contact_whatsapp'] ?? ''),
+        'secondary_contact_email' => sanitize_email($data['secondary_contact_email'] ?? '')
+    );
+
+    // --- FIX: Corrected the format array to match all 18 fields ---
+    $format = array(
+        '%s', '%s', '%f', '%f', '%s', '%d', '%d', '%s', 
+        '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 
+        '%s', '%s'
+    );
+    
+    if ($unit_id > 0) {
+        // Existing unit update
+        return $wpdb->update($table_name, $unit_data, array('id' => $unit_id), $format, array('%d'));
+    } else {
+        // New unit insert
+        return $wpdb->insert($table_name, $unit_data, $format);
+    }
+}
+
+public function delete_unit($unit_id) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'storage_units';
         return $wpdb->delete($table_name, array('id' => $unit_id), array('%d'));
@@ -332,17 +372,58 @@ public function save_unit($data) {
         );
     }
 
-    public function get_expiring_units($days) {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'storage_units';
-        return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM $table_name 
-             WHERE is_occupied = 1 
-             AND period_until = DATE_ADD(CURDATE(), INTERVAL %d DAY)
-             AND primary_contact_email != ''",
-            $days
-        ), ARRAY_A);
+    
+    /**
+ * units that still belong to a customer and whose period ended before today.
+ */
+public function get_expired_but_occupied_units(): array {
+    global $wpdb;
+    $t = $wpdb->prefix . 'storage_units';
+    // If you track a status column, add AND status='active'
+    $rows = $wpdb->get_results("
+        SELECT * FROM {$t}
+        WHERE customer_id IS NOT NULL
+          AND period_until < CURDATE()
+    ", ARRAY_A);
+    return is_array($rows) ? $rows : [];
+}
+
+/**
+ * Renew a pallet for the next month (inclusive period).
+ * New period: (period_from = old_until + 1 day),
+ *             (period_until = period_from + 1 month - 1 day)
+ */
+public function renew_pallet_for_next_period( int $pallet_id ) {
+    global $wpdb;
+    $t = $wpdb->prefix . 'storage_units';
+
+    $current_until = $wpdb->get_var($wpdb->prepare("SELECT period_until FROM {$t} WHERE id = %d", $pallet_id));
+    if (!$current_until) return false;
+
+    try {
+        $from = new DateTime($current_until, wp_timezone()); // ‘Y-m-d’
+        $from->modify('+1 day');
+
+        $until = clone $from;
+        $until->modify('+1 month')->modify('-1 day'); // inclusive end
+
+        return $wpdb->update(
+            $t,
+            [
+                'period_from'    => $from->format('Y-m-d'),
+                'period_until'   => $until->format('Y-m-d'),
+                'payment_status' => 'unpaid',
+            ],
+            ['id' => $pallet_id],
+            ['%s','%s','%s'],
+            ['%d']
+        );
+    } catch (\Throwable $e) {
+        error_log('SUM Pallet Renew error: ' . $e->getMessage());
+        return false;
     }
+}
+
     
     // --- New Customer Management Methods (Step 3) ---
 
@@ -408,7 +489,7 @@ public function save_unit($data) {
         $table_name = $wpdb->prefix . 'storage_customers';
         
         // NOTE: In a production environment, you should add a check here 
-        // to ensure no units or pallets are still linked to this customer
+        // to ensure no units or units are still linked to this customer
         // before performing the deletion (e.g., SELECT COUNT(*) FROM storage_units WHERE customer_id = %d).
         
         return $wpdb->delete($table_name, array('id' => $customer_id), array('%d'));
