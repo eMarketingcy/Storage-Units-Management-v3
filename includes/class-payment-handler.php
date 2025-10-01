@@ -492,8 +492,13 @@ public function process_stripe_payment() {
         wp_send_json_error('Payment processed but failed to update records'); return;
     }
 
+    // Log payment details for debugging
+    error_log("SUM Payment Processing: entity_id={$entity_id}, is_customer=" . ($is_customer ? 'yes' : 'no') . ", is_pallet=" . ($is_pallet ? 'yes' : 'no') . ", payment_months={$payment_months}");
+
     // Extend rental periods for advance payments (ALL payment types)
     if ($payment_months > 1) {
+        error_log("SUM Payment: Advance payment detected - extending periods by {$payment_months} months");
+
         if ($is_customer) {
             // Customer payment - extend all their units/pallets
             if (file_exists(SUM_PLUGIN_PATH . 'includes/class-billing-automation.php')) {
@@ -507,14 +512,22 @@ public function process_stripe_payment() {
             if ($pallet && !empty($pallet['period_until'])) {
                 $current_until = $pallet['period_until'];
                 $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
-                $wpdb->update(
+
+                $result = $wpdb->update(
                     $wpdb->prefix . 'storage_pallets',
                     array('period_until' => $new_until),
                     array('id' => $entity_id),
                     array('%s'),
                     array('%d')
                 );
-                error_log("SUM Payment: Extended pallet {$entity_id} from {$current_until} to {$new_until}");
+
+                if ($result !== false) {
+                    error_log("SUM Payment SUCCESS: Extended pallet {$entity_id} from {$current_until} to {$new_until}");
+                } else {
+                    error_log("SUM Payment ERROR: Failed to extend pallet {$entity_id} - " . $wpdb->last_error);
+                }
+            } else {
+                error_log("SUM Payment ERROR: Pallet {$entity_id} not found or has no period_until");
             }
         } else {
             // Single unit payment - extend this unit only
@@ -522,22 +535,30 @@ public function process_stripe_payment() {
             if ($unit && !empty($unit['period_until'])) {
                 $current_until = $unit['period_until'];
                 $new_until = date('Y-m-d', strtotime($current_until . ' +' . $payment_months . ' months'));
-                $wpdb->update(
+
+                $result = $wpdb->update(
                     $wpdb->prefix . 'storage_units',
                     array('period_until' => $new_until),
                     array('id' => $entity_id),
                     array('%s'),
                     array('%d')
                 );
-                error_log("SUM Payment: Extended unit {$entity_id} from {$current_until} to {$new_until}");
+
+                if ($result !== false) {
+                    error_log("SUM Payment SUCCESS: Extended unit {$entity_id} from {$current_until} to {$new_until}");
+                } else {
+                    error_log("SUM Payment ERROR: Failed to extend unit {$entity_id} - " . $wpdb->last_error);
+                }
+            } else {
+                error_log("SUM Payment ERROR: Unit {$entity_id} not found or has no period_until - " . json_encode($unit));
             }
         }
+    } else {
+        error_log("SUM Payment: Single month payment (payment_months={$payment_months}), no period extension needed");
     }
 
-    // Record payment in history
-    if ($is_customer) {
-        $this->record_payment_in_history($entity_id, $result['id'], $amount / 100, $payment_months);
-    }
+    // Record payment in history for ALL payment types
+    $this->record_payment_in_history($entity_id, $is_customer, $is_pallet, $result['id'], $amount / 100, $payment_months);
 
     // Send payment confirmation email with receipt
     $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount, $payment_months);
@@ -548,41 +569,116 @@ public function process_stripe_payment() {
 /**
  * Record payment in history database
  */
-private function record_payment_in_history($customer_id, $transaction_id, $amount, $payment_months = 1) {
+private function record_payment_in_history($entity_id, $is_customer, $is_pallet, $transaction_id, $amount, $payment_months = 1) {
+    global $wpdb;
+
     if (!class_exists('SUM_Payment_History')) {
         require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
-    }
-
-    if (!class_exists('SUM_Customer_Database')) {
-        require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
-    }
-
-    $customer_db = new SUM_Customer_Database();
-    $customer = $customer_db->get_customer($customer_id);
-
-    if (!$customer) {
-        error_log("SUM Payment History: Customer {$customer_id} not found");
-        return false;
-    }
-
-    $rentals = $customer_db->get_customer_rentals($customer_id, true);
-
-    $items_paid = array();
-    foreach ($rentals as $rental) {
-        $items_paid[] = array(
-            'type' => isset($rental['type']) ? $rental['type'] : 'item',
-            'name' => isset($rental['name']) ? $rental['name'] : 'Unknown',
-            'period_until' => isset($rental['period_until']) ? $rental['period_until'] : null,
-            'monthly_price' => isset($rental['monthly_price']) ? $rental['monthly_price'] : 0
-        );
     }
 
     $history = new SUM_Payment_History();
     $currency = strtoupper($this->database->get_setting('currency', 'EUR'));
 
+    // Get customer info and items based on payment type
+    $customer_name = '';
+    $customer_id_for_history = 0;
+    $items_paid = array();
+
+    if ($is_customer) {
+        // Customer payment - get all their rentals
+        if (!class_exists('SUM_Customer_Database')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
+        }
+        $customer_db = new SUM_Customer_Database();
+        $customer = $customer_db->get_customer($entity_id);
+
+        if (!$customer) {
+            error_log("SUM Payment History: Customer {$entity_id} not found");
+            return false;
+        }
+
+        $customer_name = $customer['full_name'];
+        $customer_id_for_history = $entity_id;
+
+        // Get FRESH rental data after period extension
+        $rentals = $customer_db->get_customer_rentals($entity_id, true);
+
+        foreach ($rentals as $rental) {
+            // Get FRESH period_until from database
+            if ($rental['type'] === 'pallet') {
+                $fresh_until = $wpdb->get_var($wpdb->prepare(
+                    "SELECT period_until FROM {$wpdb->prefix}storage_pallets WHERE id = %d",
+                    $rental['id']
+                ));
+            } else {
+                $fresh_until = $wpdb->get_var($wpdb->prepare(
+                    "SELECT period_until FROM {$wpdb->prefix}storage_units WHERE id = %d",
+                    $rental['id']
+                ));
+            }
+
+            $items_paid[] = array(
+                'type' => $rental['type'],
+                'name' => $rental['name'] ?? 'Unknown',
+                'period_until' => $fresh_until ?? ($rental['period_until'] ?? null),
+                'monthly_price' => $rental['monthly_price'] ?? 0
+            );
+        }
+
+    } elseif ($is_pallet) {
+        // Single pallet payment
+        $pallet = $this->pallet_db->get_pallet($entity_id);
+        if (!$pallet) {
+            error_log("SUM Payment History: Pallet {$entity_id} not found");
+            return false;
+        }
+
+        $customer_name = $pallet['primary_contact_name'] ?? 'Pallet Customer';
+        $customer_id_for_history = 0; // No customer ID for direct pallet payment
+
+        // Get FRESH period_until
+        $fresh_until = $wpdb->get_var($wpdb->prepare(
+            "SELECT period_until FROM {$wpdb->prefix}storage_pallets WHERE id = %d",
+            $entity_id
+        ));
+
+        $items_paid[] = array(
+            'type' => 'pallet',
+            'name' => $pallet['pallet_name'] ?? 'Unknown',
+            'period_until' => $fresh_until ?? ($pallet['period_until'] ?? null),
+            'monthly_price' => $pallet['monthly_price'] ?? 0
+        );
+
+    } else {
+        // Single unit payment
+        $unit = $this->database->get_unit($entity_id);
+        if (!$unit) {
+            error_log("SUM Payment History: Unit {$entity_id} not found");
+            return false;
+        }
+
+        $customer_name = $unit['primary_contact_name'] ?? 'Unit Customer';
+        $customer_id_for_history = 0; // No customer ID for direct unit payment
+
+        // Get FRESH period_until
+        $fresh_until = $wpdb->get_var($wpdb->prepare(
+            "SELECT period_until FROM {$wpdb->prefix}storage_units WHERE id = %d",
+            $entity_id
+        ));
+
+        $items_paid[] = array(
+            'type' => 'unit',
+            'name' => $unit['unit_name'] ?? 'Unknown',
+            'period_until' => $fresh_until ?? ($unit['period_until'] ?? null),
+            'monthly_price' => $unit['monthly_price'] ?? 0
+        );
+    }
+
+    error_log("SUM Payment History: Recording payment - customer: {$customer_name}, items: " . count($items_paid) . ", amount: {$currency} {$amount}");
+
     return $history->record_payment(
-        $customer_id,
-        $customer['full_name'],
+        $customer_id_for_history,
+        $customer_name,
         $transaction_id,
         $amount,
         $currency,
