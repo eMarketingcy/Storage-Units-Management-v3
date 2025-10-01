@@ -667,29 +667,16 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
  * Generate receipt PDF for successful payment
  */
 private function generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
-    // Load PDF generator
-    if ($is_customer) {
-        if (!class_exists('SUM_Customer_Database')) {
-            require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
-        }
-        if (!class_exists('SUM_Customer_PDF_Generator')) {
-            require_once SUM_PLUGIN_PATH . 'includes/class-customer-pdf-generator.php';
-        }
-        $customer_db = new SUM_Customer_Database();
-        $pdf_gen = new SUM_Customer_PDF_Generator($customer_db);
-    } else {
-        // For units and pallets, generate a simple receipt
-        return $this->generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
-    }
-
-    // For customers, use existing PDF generator
-    return $pdf_gen->generate_invoice($entity_id);
+    // For all entity types, use the comprehensive receipt generator
+    return $this->generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
 }
 
 /**
  * Generate simple receipt PDF for units and pallets
  */
 private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
+    global $wpdb;
+
     $upload_dir = wp_upload_dir();
     $pdf_dir = $upload_dir['basedir'] . '/receipts';
     if (!file_exists($pdf_dir)) { wp_mkdir_p($pdf_dir); }
@@ -702,15 +689,77 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
     $company_email = $this->database->get_setting('company_email', get_option('admin_email'));
     $company_phone = $this->database->get_setting('company_phone', '');
     $logo_url = $this->database->get_setting('company_logo', '');
+    $vat_enabled = ($this->database->get_setting('vat_enabled', '0') === '1');
+    $vat_rate = (float)$this->database->get_setting('vat_rate', '0');
 
-    // Build rentals rows
+    // Load billing calculator
+    if (!function_exists('calculate_billing_months')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-rental-billing-calculator.php';
+    }
+
+    // Build rentals rows with proper calculations
     $rentals_rows = '';
+    $subtotal = 0.0;
+
     foreach ($rentals as $rental) {
         $type = isset($rental['type']) ? ucfirst($rental['type']) : 'Item';
         $name = $rental['name'] ?? '';
-        $price = isset($rental['monthly_price']) ? number_format((float)$rental['monthly_price'], 2) : '0.00';
-        $rentals_rows .= '<tr><td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($type . ' ' . $name) . '</td><td style="padding:12px;text-align:right;border-bottom:1px solid #e2e8f0;">' . $currency . ' ' . $price . '</td></tr>';
+        $monthly_price = isset($rental['monthly_price']) ? (float)$rental['monthly_price'] : 0.0;
+
+        // Calculate billing if period is available
+        $period_text = '—';
+        $rate_text = $currency . ' ' . number_format($monthly_price, 2) . '/month';
+        $line_amount = $monthly_price;
+
+        if (!empty($rental['period_from']) && !empty($rental['period_until'])) {
+            try {
+                $billing = calculate_billing_months($rental['period_from'], $rental['period_until'], ['monthly_price' => $monthly_price]);
+                $line_amount = $billing['totals']['prorated_subtotal'] ?? $monthly_price;
+                $period_text = date_i18n('M j, Y', strtotime($rental['period_from'])) . ' - ' . date_i18n('M j, Y', strtotime($rental['period_until']));
+            } catch (Exception $e) {
+                $line_amount = $monthly_price;
+                if (!empty($rental['period_from'])) {
+                    $period_text = date_i18n('M j, Y', strtotime($rental['period_from']));
+                }
+            }
+        }
+
+        $subtotal += $line_amount;
+
+        $rentals_rows .= '<tr>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($type . ' ' . $name) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:center;font-size:11px;">' . esc_html($period_text) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:right;">' . $rate_text . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600;">' . $currency . ' ' . number_format($line_amount, 2) . '</td>
+        </tr>';
     }
+
+    // Calculate VAT and total
+    $vat_amount = $vat_enabled ? ($subtotal * ($vat_rate / 100)) : 0.0;
+    $total = $subtotal + $vat_amount;
+
+    // Payment history - get previous payments
+    $payment_history_rows = '';
+    if ($is_pallet) {
+        // For pallets - this payment only
+        $payment_history_rows = '<tr>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($payment_date) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($transaction_id) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#10b981;font-weight:600;">' . $currency . ' ' . number_format($amount, 2) . '</td>
+        </tr>';
+    } else {
+        // For units - this payment only
+        $payment_history_rows = '<tr>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($payment_date) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($transaction_id) . '</td>
+            <td style="padding:12px;border-bottom:1px solid #e2e8f0;text-align:right;color:#10b981;font-weight:600;">' . $currency . ' ' . number_format($amount, 2) . '</td>
+        </tr>';
+    }
+
+    // Check for remaining balance
+    $remaining_balance = 0.0;
+    $remaining_items = '';
+    // Since we only process unpaid items, there's no remaining balance for this entity after payment
 
     // Generate HTML
     $html = '
@@ -719,7 +768,7 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
     <head>
         <meta charset="UTF-8">
         <style>
-            body { font-family: Arial, sans-serif; margin: 40px; color: #1e293b; }
+            body { font-family: Arial, sans-serif; margin: 40px; color: #1e293b; font-size: 14px; }
             .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #10b981; }
             .header h1 { margin: 0; color: #10b981; font-size: 28px; }
             .header p { margin: 5px 0; color: #64748b; }
@@ -729,11 +778,14 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
             .info-label { color: #64748b; }
             .info-value { font-weight: 600; color: #1e293b; }
             table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; color: #1e293b; font-weight: 600; }
+            th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; color: #1e293b; font-weight: 600; font-size: 12px; }
             td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-            .total-row { font-weight: bold; font-size: 18px; background: #f8fafc; }
+            .subtotal-row { background: #fafafa; }
+            .vat-row { background: #fafafa; }
+            .total-row { font-weight: bold; font-size: 16px; background: #f8fafc; }
             .total-amount { color: #10b981; }
             .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
+            .section-title { margin: 32px 0 12px; color: #1e293b; font-size: 16px; font-weight: 600; }
         </style>
     </head>
     <body>
@@ -742,10 +794,11 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
             <h1>' . esc_html($company_name) . '</h1>
             <p>' . esc_html($company_email) . ($company_phone ? ' | ' . esc_html($company_phone) : '') . '</p>
             <div class="receipt-badge">PAYMENT RECEIPT</div>
+            <p style="margin-top:16px;font-size:13px;color:#64748b;">Receipt Date: ' . esc_html(date_i18n('F j, Y')) . '</p>
         </div>
 
         <div class="info-box">
-            <h2 style="margin:0 0 16px;color:#1e293b;">Payment Information</h2>
+            <h2 style="margin:0 0 16px;color:#1e293b;font-size:18px;">Payment Information</h2>
             <div class="info-row">
                 <span class="info-label">Customer:</span>
                 <span class="info-value">' . esc_html($customer_name) . '</span>
@@ -758,13 +811,19 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
                 <span class="info-label">Payment Date:</span>
                 <span class="info-value">' . esc_html($payment_date) . '</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Amount Paid:</span>
+                <span class="info-value" style="color:#10b981;font-size:18px;">' . $currency . ' ' . number_format($amount, 2) . '</span>
+            </div>
         </div>
 
-        <h3 style="margin:24px 0 8px;color:#1e293b;">Items Paid</h3>
+        <h3 class="section-title">Billing Details</h3>
         <table>
             <thead>
                 <tr>
-                    <th>Item</th>
+                    <th>Unit(s) / Pallet(s)</th>
+                    <th style="text-align:center;">Period</th>
+                    <th style="text-align:right;">Rate</th>
                     <th style="text-align:right;">Amount</th>
                 </tr>
             </thead>
@@ -772,16 +831,45 @@ private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $
                 ' . $rentals_rows . '
             </tbody>
             <tfoot>
+                <tr class="subtotal-row">
+                    <td colspan="3" style="text-align:right;padding:12px;">Subtotal:</td>
+                    <td style="text-align:right;padding:12px;">' . $currency . ' ' . number_format($subtotal, 2) . '</td>
+                </tr>' .
+                ($vat_enabled ? '
+                <tr class="vat-row">
+                    <td colspan="3" style="text-align:right;padding:12px;">VAT (' . number_format($vat_rate, 0) . '%):</td>
+                    <td style="text-align:right;padding:12px;">' . $currency . ' ' . number_format($vat_amount, 2) . '</td>
+                </tr>' : '') . '
                 <tr class="total-row">
-                    <td>Total Paid</td>
-                    <td style="text-align:right;" class="total-amount">' . $currency . ' ' . number_format($amount, 2) . '</td>
+                    <td colspan="3" style="text-align:right;padding:12px;">Total Paid:</td>
+                    <td style="text-align:right;padding:12px;" class="total-amount">' . $currency . ' ' . number_format($total, 2) . '</td>
                 </tr>
             </tfoot>
         </table>
 
+        <h3 class="section-title">Payment History</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Transaction ID</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ' . $payment_history_rows . '
+            </tbody>
+        </table>
+
+        <div style="background:#d1fae5;padding:16px;border-radius:8px;margin:24px 0;">
+            <p style="margin:0;color:#065f46;font-weight:600;">✓ Status: PAID IN FULL</p>
+            <p style="margin:8px 0 0;color:#059669;font-size:13px;">All items on this receipt have been paid. Thank you!</p>
+        </div>
+
         <div class="footer">
             <p>Thank you for your payment!</p>
             <p>This is an official payment receipt from ' . esc_html($company_name) . '</p>
+            <p style="margin-top:12px;">For any questions, please contact us at ' . esc_html($company_email) . '</p>
         </div>
     </body>
     </html>';
