@@ -491,7 +491,326 @@ public function process_stripe_payment() {
         wp_send_json_error('Payment processed but failed to update records'); return;
     }
 
+    // Send payment confirmation email with receipt
+    $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount);
+
     wp_send_json_success('Payment processed successfully');
+}
+
+/**
+ * Send payment receipt email to customer and admin after successful payment
+ */
+private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $stripe_result, $amount_cents) {
+    global $wpdb;
+
+    $amount = $amount_cents / 100;
+    $currency = strtoupper($this->database->get_setting('currency', 'EUR'));
+    $transaction_id = isset($stripe_result['id']) ? $stripe_result['id'] : '';
+    $payment_date = date_i18n('F j, Y g:i A');
+
+    // Get customer info and rentals based on entity type
+    if ($is_customer) {
+        if (!class_exists('SUM_Customer_Database')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
+        }
+        $customer_db = new SUM_Customer_Database();
+        $customer = $customer_db->get_customer($entity_id);
+        $rentals = $customer_db->get_customer_rentals($entity_id, true);
+
+        if (!$customer || empty($customer['email'])) return;
+
+        $customer_email = $customer['email'];
+        $customer_name = $customer['full_name'] ?? 'Customer';
+        $entity_type = 'Customer';
+
+    } elseif ($is_pallet) {
+        if (!$this->pallet_db) return;
+        $pallet = $this->pallet_db->get_pallet($entity_id);
+        if (!$pallet || empty($pallet['primary_contact_email'])) return;
+
+        $customer_email = $pallet['primary_contact_email'];
+        $customer_name = $pallet['primary_contact_name'] ?? 'Customer';
+        $entity_type = 'Pallet';
+        $rentals = [['type' => 'pallet', 'name' => $pallet['pallet_name'], 'monthly_price' => $pallet['monthly_price']]];
+
+    } else {
+        $unit = $this->database->get_unit($entity_id);
+        if (!$unit || empty($unit['primary_contact_email'])) return;
+
+        $customer_email = $unit['primary_contact_email'];
+        $customer_name = $unit['primary_contact_name'] ?? 'Customer';
+        $entity_type = 'Unit';
+        $rentals = [['type' => 'unit', 'name' => $unit['unit_name'], 'monthly_price' => $unit['monthly_price']]];
+    }
+
+    // Generate receipt PDF
+    $pdf_path = $this->generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
+
+    // Get email settings
+    $company_name = $this->database->get_setting('company_name', 'Self Storage Cyprus');
+    $company_email = $this->database->get_setting('company_email', get_option('admin_email'));
+    $admin_email = $this->database->get_setting('admin_email', get_option('admin_email'));
+    $logo_url = $this->database->get_setting('company_logo', '');
+
+    // Build rentals list for email
+    $rentals_html = '<table style="width:100%;border-collapse:collapse;margin:16px 0;">';
+    $rentals_html .= '<thead><tr style="background:#f8fafc;"><th style="padding:12px;text-align:left;border-bottom:2px solid #e2e8f0;">Item</th><th style="padding:12px;text-align:right;border-bottom:2px solid #e2e8f0;">Amount</th></tr></thead>';
+    $rentals_html .= '<tbody>';
+
+    foreach ($rentals as $rental) {
+        $type = isset($rental['type']) ? ucfirst($rental['type']) : 'Item';
+        $name = $rental['name'] ?? '';
+        $price = isset($rental['monthly_price']) ? number_format((float)$rental['monthly_price'], 2) : '0.00';
+        $rentals_html .= '<tr><td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($type . ' ' . $name) . '</td><td style="padding:12px;text-align:right;border-bottom:1px solid #e2e8f0;">' . $currency . ' ' . $price . '</td></tr>';
+    }
+
+    $rentals_html .= '</tbody>';
+    $rentals_html .= '<tfoot><tr><td style="padding:12px;font-weight:bold;border-top:2px solid #e2e8f0;">Total Paid</td><td style="padding:12px;text-align:right;font-weight:bold;border-top:2px solid #e2e8f0;color:#10b981;">' . $currency . ' ' . number_format($amount, 2) . '</td></tr></tfoot>';
+    $rentals_html .= '</table>';
+
+    // Logo HTML
+    $logo_html = '';
+    if ($logo_url) {
+        $logo_html = '<img src="' . esc_url($logo_url) . '" alt="' . esc_attr($company_name) . '" style="max-width:150px;height:auto;display:block;margin:0 auto 24px;" />';
+    }
+
+    // Email subject
+    $subject = 'Payment Confirmation - ' . $company_name;
+
+    // Email body
+    $body = '
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f8fafc;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f8fafc;padding:24px 16px;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                        <tr>
+                            <td style="padding:32px 24px;text-align:center;background:#10b981;">
+                                ' . $logo_html . '
+                                <h1 style="margin:0;color:#ffffff;font-size:24px;">Payment Successful!</h1>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:32px 24px;">
+                                <p style="margin:0 0 16px;font-size:16px;color:#1e293b;">Dear ' . esc_html($customer_name) . ',</p>
+                                <p style="margin:0 0 16px;font-size:16px;color:#1e293b;">Thank you for your payment. We have successfully received your payment and your receipt is attached to this email.</p>
+
+                                <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:24px 0;">
+                                    <h2 style="margin:0 0 16px;font-size:18px;color:#1e293b;">Payment Details</h2>
+                                    <table style="width:100%;">
+                                        <tr>
+                                            <td style="padding:8px 0;color:#64748b;">Transaction ID:</td>
+                                            <td style="padding:8px 0;text-align:right;color:#1e293b;font-weight:600;">' . esc_html($transaction_id) . '</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:8px 0;color:#64748b;">Payment Date:</td>
+                                            <td style="padding:8px 0;text-align:right;color:#1e293b;font-weight:600;">' . esc_html($payment_date) . '</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:8px 0;color:#64748b;">Amount Paid:</td>
+                                            <td style="padding:8px 0;text-align:right;color:#10b981;font-weight:700;font-size:20px;">' . $currency . ' ' . number_format($amount, 2) . '</td>
+                                        </tr>
+                                    </table>
+                                </div>
+
+                                <h3 style="margin:24px 0 8px;font-size:16px;color:#1e293b;">Items Paid</h3>
+                                ' . $rentals_html . '
+
+                                <p style="margin:24px 0 0;font-size:14px;color:#64748b;line-height:1.6;">
+                                    If you have any questions about this payment, please contact us at ' . esc_html($company_email) . '.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:24px;text-align:center;background:#f8fafc;border-top:1px solid #e2e8f0;">
+                                <p style="margin:0;font-size:14px;color:#64748b;">' . esc_html($company_name) . '</p>
+                                <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">This is an automated email. Please do not reply.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>';
+
+    // Send email to customer
+    $headers = ['Content-Type: text/html; charset=UTF-8'];
+    $attachments = [];
+    if ($pdf_path && file_exists($pdf_path)) {
+        $attachments[] = $pdf_path;
+    }
+
+    wp_mail($customer_email, $subject, $body, $headers, $attachments);
+
+    // Send copy to admin
+    if ($admin_email && strcasecmp($admin_email, $customer_email) !== 0) {
+        wp_mail($admin_email, '[Admin Copy] ' . $subject, $body, $headers, $attachments);
+    }
+
+    // Cleanup PDF after sending
+    if ($pdf_path && file_exists($pdf_path)) {
+        $uploads = wp_upload_dir();
+        if (!empty($uploads['basedir']) && strpos($pdf_path, $uploads['basedir']) === 0) {
+            @unlink($pdf_path);
+        }
+    }
+}
+
+/**
+ * Generate receipt PDF for successful payment
+ */
+private function generate_receipt_pdf($entity_id, $is_customer, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
+    // Load PDF generator
+    if ($is_customer) {
+        if (!class_exists('SUM_Customer_Database')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
+        }
+        if (!class_exists('SUM_Customer_PDF_Generator')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-customer-pdf-generator.php';
+        }
+        $customer_db = new SUM_Customer_Database();
+        $pdf_gen = new SUM_Customer_PDF_Generator($customer_db);
+    } else {
+        // For units and pallets, generate a simple receipt
+        return $this->generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name);
+    }
+
+    // For customers, use existing PDF generator
+    return $pdf_gen->generate_invoice($entity_id);
+}
+
+/**
+ * Generate simple receipt PDF for units and pallets
+ */
+private function generate_simple_receipt_pdf($entity_id, $is_pallet, $rentals, $amount, $currency, $transaction_id, $payment_date, $customer_name) {
+    $upload_dir = wp_upload_dir();
+    $pdf_dir = $upload_dir['basedir'] . '/receipts';
+    if (!file_exists($pdf_dir)) { wp_mkdir_p($pdf_dir); }
+
+    $pdf_filename = 'receipt-' . ($is_pallet ? 'pallet-' : 'unit-') . $entity_id . '-' . date('Y-m-d-H-i-s') . '.pdf';
+    $pdf_filepath = trailingslashit($pdf_dir) . $pdf_filename;
+
+    // Get company settings
+    $company_name = $this->database->get_setting('company_name', 'Self Storage Cyprus');
+    $company_email = $this->database->get_setting('company_email', get_option('admin_email'));
+    $company_phone = $this->database->get_setting('company_phone', '');
+    $logo_url = $this->database->get_setting('company_logo', '');
+
+    // Build rentals rows
+    $rentals_rows = '';
+    foreach ($rentals as $rental) {
+        $type = isset($rental['type']) ? ucfirst($rental['type']) : 'Item';
+        $name = $rental['name'] ?? '';
+        $price = isset($rental['monthly_price']) ? number_format((float)$rental['monthly_price'], 2) : '0.00';
+        $rentals_rows .= '<tr><td style="padding:12px;border-bottom:1px solid #e2e8f0;">' . esc_html($type . ' ' . $name) . '</td><td style="padding:12px;text-align:right;border-bottom:1px solid #e2e8f0;">' . $currency . ' ' . $price . '</td></tr>';
+    }
+
+    // Generate HTML
+    $html = '
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; color: #1e293b; }
+            .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #10b981; }
+            .header h1 { margin: 0; color: #10b981; font-size: 28px; }
+            .header p { margin: 5px 0; color: #64748b; }
+            .receipt-badge { display: inline-block; background: #10b981; color: white; padding: 8px 16px; border-radius: 4px; font-weight: bold; margin: 16px 0; }
+            .info-box { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .info-row { display: flex; justify-content: space-between; padding: 8px 0; }
+            .info-label { color: #64748b; }
+            .info-value { font-weight: 600; color: #1e293b; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; color: #1e293b; font-weight: 600; }
+            td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+            .total-row { font-weight: bold; font-size: 18px; background: #f8fafc; }
+            .total-amount { color: #10b981; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            ' . ($logo_url ? '<img src="' . esc_url($logo_url) . '" alt="Logo" style="max-width:150px;height:auto;margin-bottom:16px;" />' : '') . '
+            <h1>' . esc_html($company_name) . '</h1>
+            <p>' . esc_html($company_email) . ($company_phone ? ' | ' . esc_html($company_phone) : '') . '</p>
+            <div class="receipt-badge">PAYMENT RECEIPT</div>
+        </div>
+
+        <div class="info-box">
+            <h2 style="margin:0 0 16px;color:#1e293b;">Payment Information</h2>
+            <div class="info-row">
+                <span class="info-label">Customer:</span>
+                <span class="info-value">' . esc_html($customer_name) . '</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Transaction ID:</span>
+                <span class="info-value">' . esc_html($transaction_id) . '</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Payment Date:</span>
+                <span class="info-value">' . esc_html($payment_date) . '</span>
+            </div>
+        </div>
+
+        <h3 style="margin:24px 0 8px;color:#1e293b;">Items Paid</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                ' . $rentals_rows . '
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td>Total Paid</td>
+                    <td style="text-align:right;" class="total-amount">' . $currency . ' ' . number_format($amount, 2) . '</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="footer">
+            <p>Thank you for your payment!</p>
+            <p>This is an official payment receipt from ' . esc_html($company_name) . '</p>
+        </div>
+    </body>
+    </html>';
+
+    // Try to generate PDF using Dompdf
+    if (function_exists('sum_load_dompdf') && sum_load_dompdf()) {
+        try {
+            $opts = new \Dompdf\Options();
+            $opts->set('isRemoteEnabled', true);
+            $opts->set('defaultFont', 'DejaVu Sans');
+            $dompdf = new \Dompdf\Dompdf($opts);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->loadHtml($html);
+            $dompdf->render();
+            if (false !== file_put_contents($pdf_filepath, $dompdf->output())) {
+                return $pdf_filepath;
+            }
+        } catch (\Throwable $e) {
+            error_log('SUM Receipt PDF error: ' . $e->getMessage());
+        }
+    }
+
+    // Fallback to HTML
+    $html_filepath = str_replace('.pdf', '.html', $pdf_filepath);
+    if (false !== file_put_contents($html_filepath, $html)) {
+        return $html_filepath;
+    }
+
+    return null;
 }
 
 public function ajax_generate_invoice_pdf() {
@@ -542,25 +861,7 @@ public function ajax_generate_invoice_pdf() {
         if (!class_exists('SUM_Customer_PDF_Generator')) { wp_send_json_error('PDF generator not available'); return; }
 
         $pdf_gen = new SUM_Customer_PDF_Generator($customer_db);
-        $rentals = $customer_db->get_customer_rentals($entity_id, true);
-
-        // Build items for PDF (unpaid only)
-        $items = array();
-        foreach ($rentals as $r) {
-            $type = $r['type'] === 'pallet' ? 'Pallet' : 'Unit';
-            $name = $r['name'] ?: ('#' . ($r['id'] ?? ''));
-            $label = "{$type} {$name}";
-            if (!empty($r['period_from']) && !empty($r['period_until'])) {
-                $label .= sprintf(' (%s – %s)',
-                    date_i18n('M j, Y', strtotime($r['period_from'])),
-                    date_i18n('M j, Y', strtotime($r['period_until']))
-                );
-            }
-            $price = (float)($r['monthly_price'] ?? 0);
-            $items[] = array('label' => $label, 'qty' => 1, 'price' => $price, 'amount' => $price);
-        }
-
-        $pdf_path = $pdf_gen->generate_customer_invoice($entity_id, $items);
+        $pdf_path = $pdf_gen->generate_invoice($entity_id);
 
     } elseif ($is_pallet) {
         if (!$this->pallet_db) { wp_send_json_error('Invalid payment link'); return; }
