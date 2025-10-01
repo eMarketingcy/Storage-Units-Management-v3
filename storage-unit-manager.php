@@ -330,7 +330,7 @@ if ( file_exists($customers_module) ) {
 
 
 class StorageUnitManager {
-    
+
     private $database;
     private $ajax_handlers;
     private $payment_handler;
@@ -338,7 +338,10 @@ class StorageUnitManager {
     private $pallet_database;
     private $pallet_ajax_handlers;
     private $pallet_email_handler;
-    private $customer_database; 
+    private $customer_database;
+    private $customer_pdf_generator;
+    private $customer_email_handler;
+    private $billing_automation; 
     
     public function __construct() {
         add_action('init', array($this, 'init'));

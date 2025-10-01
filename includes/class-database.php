@@ -24,7 +24,7 @@ class SUM_Database {
         $settings_sql = "CREATE TABLE $settings_table (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             setting_key varchar(100) NOT NULL,
-            setting_value longtext DEFAULT '',
+            setting_value longtext,
             PRIMARY KEY (id),
             UNIQUE KEY setting_key (setting_key)
         ) $charset_collate;";
@@ -137,7 +137,7 @@ public function create_tables() {
         $settings_sql = "CREATE TABLE $settings_table (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             setting_key varchar(100) NOT NULL,
-            setting_value longtext DEFAULT '',
+            setting_value longtext,
             PRIMARY KEY (id),
             UNIQUE KEY setting_key (setting_key)
         ) $charset_collate;";
