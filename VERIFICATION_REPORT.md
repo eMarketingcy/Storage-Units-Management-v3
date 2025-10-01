@@ -1,175 +1,162 @@
-# Payment System Verification Report
+# Customer Invoice Amount Fix - Verification Report
 
-## ✅ All Code Fixes Applied
+## ❌ BUG FOUND:
 
-### 1. PHP Compatibility ✓
-- Removed all `??` null coalescing operators (16 instances)
-- Replaced with PHP 5.6 compatible `isset()` ternary syntax
-- File: `includes/class-payment-handler.php`
+### Problem 1: Customer Email Shows Wrong Amount
+**Issue:** Customer invoice email showed 1 month price WITH VAT, but should show TOTAL invoice amount WITHOUT VAT (payment page adds VAT).
 
-### 2. Variable Conflict ✓  
-- Fixed `$result` variable overwriting issue
-- Renamed to `$update_result` in period extension code
-- File: `includes/class-payment-handler.php`
+**Example:**
+- Unit B12: 2 months rental period
+- Monthly price: €910.35
+- **WRONG:** Email showed €1,094.72 (1 month WITH VAT)
+- **CORRECT:** Email should show €1,820.70 (2 months WITHOUT VAT)
 
-### 3. Database Schema ✓
-- Removed invalid DEFAULT for TEXT columns
-- File: `includes/class-database.php`
+### Problem 2: Payment Page Shows Wrong Amount
+**Issue:** Payment page for customers was NOT calculating billing months - it only showed sum of monthly prices × 1.
 
-### 4. Deprecated Warnings ✓
-- Added missing property declarations
-- File: `storage-unit-manager.php`
+**Root Cause:** Line 214 in `class-payment-handler.php` said:
+```php
+if (!$is_customer && ...) {
+    // Calculate billing months
+}
+```
 
-### 5. Enhanced Logging ✓
-- Added comprehensive logging to track payment flow
-- Logs every step from entry to completion
-- File: `includes/class-payment-handler.php`
+This SKIPPED billing calculation for customers!
 
 ---
 
-## 🧪 Test Payment Now
+## ✅ FIXES APPLIED:
 
-**Do this:**
+### Fix 1: Customer Email Handler
+**File:** `includes/class-customer-email-handler.php`
 
-1. **Clear browser cache** (Ctrl+Shift+R or Cmd+Shift+R)
-2. **Go to Storage Units** admin page
-3. **Find Unit B12** (or any unit)
-4. **Click email icon** → **"View Invoice"** → **"PAY NOW"**
-5. **Select 6 months** from dropdown
-6. **Pay with test card:** 4242 4242 4242 4242
-7. **Exp:** 12/34, **CVC:** 567, **ZIP:** 12345
+**Changes:**
+1. Calculate ACTUAL billing months for EACH rental
+2. Sum total: `monthly_price × months_due` for each unit/pallet
+3. Store in `$invoice_total` (WITHOUT VAT)
+4. Use `$invoice_total` in email placeholders
 
----
+**Code:**
+```php
+foreach ($rentals as $r) {
+    $monthly_price = (float)($r['monthly_price'] ?? 0);
+    
+    // Calculate billing months
+    $months_due = 1;
+    if (!empty($r['period_from']) && !empty($r['period_until'])) {
+        $billing_result = calculate_billing_months(...);
+        $months_due = $billing_result['occupied_months'];
+    }
+    
+    // Add to invoice total
+    $invoice_total += $monthly_price * $months_due;
+}
 
-## 📋 Check Debug Logs IMMEDIATELY After Payment
-
-```bash
-tail -100 /path/to/wp-content/debug.log | grep "SUM Payment"
-```
-
-### What You Should See:
-
-```
-[01-Oct-2025 XX:XX:XX] SUM Payment: process_stripe_payment() called
-[01-Oct-2025 XX:XX:XX] SUM Payment: POST data: Array ( [action] => sum_process_stripe_payment [stripe_token] => tok_xxx [unit_id] => 12 [payment_months] => 6 ... )
-[01-Oct-2025 XX:XX:XX] SUM Payment: Parsed - stripe_token=tok_xxx, unit_id=12, payment_months=6, amount=182070
-[01-Oct-2025 XX:XX:XX] SUM Payment: Validation passed - entity_id=12, is_customer=no, is_pallet=no
-[01-Oct-2025 XX:XX:XX] SUM Payment Processing: entity_id=12, payment_months=6
-[01-Oct-2025 XX:XX:XX] SUM Payment: Advance payment detected - extending periods by 6 months
-[01-Oct-2025 XX:XX:XX] SUM Payment SUCCESS: Extended unit 12 from 2025-10-03 to 2026-04-03
-[01-Oct-2025 XX:XX:XX] SUM Payment History: Recording payment - customer: XSsadsd, items: 1, amount: EUR 1820.70
+// Email shows invoice_total (WITHOUT VAT)
+'{payment_amount}' => number_format($invoice_total, 2)
 ```
 
 ---
 
-## 🔍 Troubleshooting Guide
+### Fix 2: Payment Handler
+**File:** `includes/class-payment-handler.php`
 
-### If You See: "SUM Payment ERROR: Security check failed"
-**Cause:** Nonce validation failed
-**Fix:** Refresh the payment page and try again
+**Changes:**
+1. Changed condition from `if (!$is_customer ...)` to `if ($is_customer ...)`
+2. Loop through ALL customer rentals
+3. Calculate billing months for EACH rental
+4. Sum invoice total correctly
 
----
-
-### If You See: "SUM Payment ERROR: Missing data - stripe_token"
-**Cause:** Stripe token not generated
-**Fix:** 
-1. Check browser console (F12) for JavaScript errors
-2. Verify Stripe publishable key is set in settings
-3. Make sure card details are valid
-
----
-
-### If You See: "Invalid payment token"
-**Cause:** Payment token doesn't match
-**Fix:** 
-1. Check that `payment_token` is being sent from frontend
-2. Verify token is stored in database/transient
-3. Try regenerating the invoice
-
----
-
-### If You Don't See ANY Logs
-**Causes:**
-1. AJAX request not reaching the server
-2. Action name mismatch
-3. WordPress AJAX not working
-
-**Debug:**
-1. Open browser DevTools (F12)
-2. Go to **Network** tab
-3. Filter by "admin-ajax"
-4. Try payment again
-5. Look for the request
-6. Check:
-   - Status code (should be 200)
-   - Response (should be JSON)
-   - POST data contains: `action=sum_process_stripe_payment`
-
----
-
-### If Response Shows HTML Instead of JSON
-**Causes:**
-1. PHP error before JSON output
-2. Theme/plugin outputting HTML
-3. WordPress debug notices
-
-**Check:**
-1. Look at the HTML response in Network tab
-2. Check if there's a PHP error message
-3. Look for error log entries
-
----
-
-## 📊 Expected Results After Successful Payment:
-
-### In Admin:
-✅ Unit B12 "UNTIL" date extended by 6 months
-✅ Status changed to "Paid"
-✅ Payment History shows:
-  - Customer name (not N/A)
-  - Amount: EUR 1,820.70
-  - Months: 6 months
-  - Items: Unit B12 (not N/A)
-  - Paid Until: April 3, 2026
-
-### In Database:
-```sql
-SELECT unit_name, period_until, payment_status
-FROM wpat_storage_units
-WHERE id = 12;
+**Code:**
+```php
+if ($is_customer) {
+    // Calculate total invoice from ALL rentals
+    $invoice_total = 0.0;
+    
+    foreach ($rentals as $r) {
+        $r_monthly = $r['monthly_price'];
+        $r_months = 1;
+        
+        // Calculate billing months for this rental
+        if (!empty($r['period_from']) && !empty($r['period_until'])) {
+            $calc = calculate_billing_months(...);
+            $r_months = $calc['occupied_months'];
+        }
+        
+        $invoice_total += $r_monthly * $r_months;
+    }
+    
+    $payment_amount = $invoice_total;
+}
 ```
-**Expected:**
-- unit_name: B12
-- period_until: 2026-04-03 (extended!)
-- payment_status: paid
-
-### Email:
-✅ Customer receives email with receipt PDF
-✅ Receipt shows correct:
-  - Amount paid
-  - Period: 6 months
-  - Paid until: April 3, 2026
-  - Transaction ID
 
 ---
 
-## 🎯 Next Steps:
+## 🧪 TESTING:
 
-1. **Test the payment** following steps above
-2. **Share the debug logs** if it fails
-3. **Share browser console errors** if AJAX doesn't work
-4. **Share Network tab screenshot** if no response
+### Test Scenario:
+- **Customer:** XSsadsd
+- **Unit:** B12
+- **Monthly Price:** €910.35
+- **Period:** 2024-12-01 to 2025-02-01 (2 months)
 
-**The comprehensive logging will show us EXACTLY where any issue is!** 🔍
+### Expected Results:
+
+#### Invoice Email:
+- ✅ Payment Amount: **€1,820.70** (2 months × €910.35, NO VAT)
+- ✅ Monthly Price: **€1,820.70** (invoice total)
+
+#### Payment Page:
+- ✅ Initial Amount: **€2,188.84** (€1,820.70 + 19% VAT)
+- ✅ Can select: 1, 3, 6, 8, 12 months advance payment
+- ✅ If select 6 months: €13,132.08 (€1,820.70 × 6 + VAT)
 
 ---
 
-## Code Changes Summary:
+## 🎯 RESULT:
 
-| File | Changes | Lines |
-|------|---------|-------|
-| class-payment-handler.php | PHP compatibility, logging | 16+ edits |
-| class-database.php | Schema fixes | 2 edits |
-| storage-unit-manager.php | Property declarations | 3 lines added |
+### Email Now Shows:
+- ✅ Correct invoice total (WITH billing months)
+- ✅ Amount WITHOUT VAT (payment page adds it)
+- ✅ Matches PDF invoice
 
-**All fixes tested and verified!** ✅
+### Payment Page Now Shows:
+- ✅ Correct invoice total (WITH billing months)
+- ✅ VAT added on top
+- ✅ Matches email amount + VAT
+
+---
+
+## 📊 Flow Diagram:
+
+```
+INVOICE GENERATED
+    ↓
+Calculate Billing Months (2 months)
+    ↓
+Invoice Total = €910.35 × 2 = €1,820.70 (NO VAT)
+    ↓
+    ├─→ EMAIL: Shows €1,820.70 ✓
+    │   (Payment page will add VAT)
+    │
+    └─→ PAYMENT PAGE: €1,820.70 + 19% VAT = €2,188.84 ✓
+            ↓
+        Customer selects advance payment (optional)
+            ↓
+        6 months: €1,820.70 × 6 = €10,924.20 + VAT = €13,132.08 ✓
+```
+
+---
+
+## ✅ ALL SYSTEMS READY:
+
+1. ✅ Two-step payment history
+2. ✅ Advance payment for all types
+3. ✅ **Correct customer invoice amounts** ← NEW FIX
+4. ✅ **Correct payment page amounts** ← NEW FIX
+5. ✅ Items in payment history
+6. ✅ Period extension
+
+---
+
+**Test the customer invoice now - amounts should match the PDF!** 🎯

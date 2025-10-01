@@ -42,16 +42,40 @@ class SUM_Customer_Email_Handler {
         // 1) Rentals + aggregates
 $rentals  = (array) $this->customer_db->get_customer_rentals($customer_id, true);
 
-// Names, sizes, monthly subtotal, status roll-up, period logic
+// Names, sizes, invoice total (WITH billing months), status roll-up, period logic
 $names = [];
 $sizes = [];
-$subtotal = 0.0;
+$invoice_total = 0.0; // This is the ACTUAL invoice total (sum of all rental periods)
 $status_rollup = 'paid'; // escalates to unpaid/overdue
 $froms = [];
 $untils = [];
 
+// Load billing calculator
+if (!function_exists('calculate_billing_months')) {
+    require_once SUM_PLUGIN_PATH . 'includes/class-rental-billing-calculator.php';
+}
+
 foreach ($rentals as $r) {
-    $subtotal += (float)($r['monthly_price'] ?? 0);
+    $monthly_price = (float)($r['monthly_price'] ?? 0);
+
+    // Calculate ACTUAL billing months for this rental
+    $months_due = 1;
+    if (!empty($r['period_from']) && !empty($r['period_until']) && function_exists('calculate_billing_months')) {
+        try {
+            $billing_result = calculate_billing_months(
+                $r['period_from'],
+                $r['period_until'],
+                array('monthly_price' => $monthly_price)
+            );
+            $months_due = isset($billing_result['occupied_months']) ? (int)$billing_result['occupied_months'] : 1;
+            if ($months_due < 1) $months_due = 1;
+        } catch (Exception $e) {
+            $months_due = 1;
+        }
+    }
+
+    // Add to invoice total (monthly_price × months_due)
+    $invoice_total += $monthly_price * $months_due;
 
     // names
     $label = $r['name'] ?: ('#' . ($r['id'] ?? ''));
@@ -83,10 +107,10 @@ foreach ($rentals as $r) {
     if (!empty($r['period_until'])) $untils[] = $r['period_until'];
 }
 
-// VAT calc stays as you had
+// VAT - invoice_total is WITHOUT VAT, payment page will add VAT
 $vat_enabled = ($this->get_setting('vat_enabled', '0') === '1');
 $vat_rate    = (float)$this->get_setting('vat_rate', '0');
-$total_with_vat = $vat_enabled ? $subtotal * (1 + ($vat_rate/100)) : $subtotal;
+$total_with_vat = $vat_enabled ? $invoice_total * (1 + ($vat_rate/100)) : $invoice_total;
 
 // Unit / Size / Status final strings
 $unit_names  = implode(', ', array_filter(array_map('trim', $names))) ?: '—';
@@ -202,8 +226,8 @@ if (count($rentals) === 1 && $froms && $untils) {
 
         $placeholders = [
     '{customer_name}'  => $customer['full_name'] ?? '',
-    '{payment_amount}' => number_format($total_with_vat, 2), // incl. VAT
-    '{monthly_price}'  => number_format($subtotal, 2),       // ← total monthly from all rentals (ex-VAT)
+    '{payment_amount}' => number_format($invoice_total, 2),  // INVOICE TOTAL (ex-VAT) - payment page adds VAT
+    '{monthly_price}'  => number_format($invoice_total, 2),  // INVOICE TOTAL (ex-VAT) - same as payment_amount
 
     '{unit_name}'      => $unit_names,                       // comma-separated
     '{unit_size}'      => $size_list,                        // comma-separated

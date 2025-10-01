@@ -210,8 +210,33 @@ public function payment_form_shortcode($atts) {
     $monthly_price  = floatval($unit['monthly_price'] ? $unit['monthly_price'] : $default_price);
     $payment_amount = $monthly_price;
 
-    // For customers, the monthly_price is already aggregated from all rentals
-    if (!$is_customer && !empty($unit['period_from']) && !empty($unit['period_until']) && $unit['period_from'] !== 'Mixed') {
+    // Calculate billing months for customer AND individual units/pallets
+    if ($is_customer) {
+        // For customers, calculate total invoice amount from ALL rentals with their billing periods
+        if (!function_exists('calculate_billing_months')) {
+            @require_once SUM_PLUGIN_PATH . 'includes/class-rental-billing-calculator.php';
+        }
+
+        $invoice_total = 0.0;
+        foreach ($rentals as $r) {
+            $r_monthly = (float)(isset($r['monthly_price']) ? $r['monthly_price'] : 0);
+            $r_months = 1;
+
+            if (!empty($r['period_from']) && !empty($r['period_until']) && function_exists('calculate_billing_months')) {
+                try {
+                    $calc = calculate_billing_months($r['period_from'], $r['period_until'], array('monthly_price' => $r_monthly));
+                    $r_months = isset($calc['occupied_months']) ? intval($calc['occupied_months']) : 1;
+                    if ($r_months < 1) { $r_months = 1; }
+                } catch (Exception $e) {
+                    $r_months = 1;
+                }
+            }
+            $invoice_total += $r_monthly * $r_months;
+        }
+        $payment_amount = $invoice_total;
+
+    } elseif (!empty($unit['period_from']) && !empty($unit['period_until']) && $unit['period_from'] !== 'Mixed') {
+        // For individual units/pallets
         if (!function_exists('calculate_billing_months')) {
             @require_once SUM_PLUGIN_PATH . 'includes/class-rental-billing-calculator.php';
         }
