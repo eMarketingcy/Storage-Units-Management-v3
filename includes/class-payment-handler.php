@@ -531,7 +531,13 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         $customer_email = $pallet['primary_contact_email'];
         $customer_name = $pallet['primary_contact_name'] ?? 'Customer';
         $entity_type = 'Pallet';
-        $rentals = [['type' => 'pallet', 'name' => $pallet['pallet_name'], 'monthly_price' => $pallet['monthly_price']]];
+        $rentals = [[
+            'type' => 'pallet',
+            'name' => $pallet['pallet_name'],
+            'monthly_price' => $pallet['monthly_price'],
+            'period_from' => $pallet['period_from'] ?? null,
+            'period_until' => $pallet['period_until'] ?? null
+        ]];
 
     } else {
         $unit = $this->database->get_unit($entity_id);
@@ -540,7 +546,13 @@ private function send_payment_receipt_email($entity_id, $is_customer, $is_pallet
         $customer_email = $unit['primary_contact_email'];
         $customer_name = $unit['primary_contact_name'] ?? 'Customer';
         $entity_type = 'Unit';
-        $rentals = [['type' => 'unit', 'name' => $unit['unit_name'], 'monthly_price' => $unit['monthly_price']]];
+        $rentals = [[
+            'type' => 'unit',
+            'name' => $unit['unit_name'],
+            'monthly_price' => $unit['monthly_price'],
+            'period_from' => $unit['period_from'] ?? null,
+            'period_until' => $unit['period_until'] ?? null
+        ]];
     }
 
     // Generate receipt PDF
