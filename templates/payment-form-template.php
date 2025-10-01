@@ -32,7 +32,6 @@ $accent_color = '#10b981';  // Green (for confirmation/success elements, kept di
             </p>
         </section>
 
-        <?php if (isset($is_customer) && $is_customer): ?>
         <section class="sum-payment-period-section" style="background: #f0f9ff; padding: 20px; border-radius: 6px; margin: 25px 0; border-left: 5px solid #3b82f6;">
             <h3 style="margin: 0 0 10px; font-size: 16px; font-weight: 600; color: #1e40af;">💰 Pay in Advance & Save</h3>
             <p style="margin: 0 0 15px; font-size: 14px; color: #64748b;">Select how many months you'd like to pay for. Your rental period will be extended automatically.</p>
@@ -52,7 +51,6 @@ $accent_color = '#10b981';  // Green (for confirmation/success elements, kept di
                 </p>
             </div>
         </section>
-        <?php endif; ?>
 
         <section class="sum-details-section" style="border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; margin-bottom: 20px;">
             <h2 class="sum-section-title" style="font-size: 18px; font-weight: 600; color: #333; margin-top: 0; margin-bottom: 15px;">Invoice Details</h2>
@@ -296,45 +294,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // --- Payment months selector for customers ---
-  if (isCustomer) {
-    var paymentMonthsSelect = document.getElementById('payment-months');
-    var amountDisplay = document.getElementById('sum-payment-amount-display');
-    var extensionInfo = document.getElementById('period-extension-info');
-    var newPeriodDisplay = document.getElementById('new-period-until');
-    var buttonText = document.getElementById('button-text');
+  // --- Payment months selector (for ALL payment types: units, pallets, customers) ---
+  var paymentMonthsSelect = document.getElementById('payment-months');
+  var amountDisplay = document.getElementById('sum-payment-amount-display');
+  var extensionInfo = document.getElementById('period-extension-info');
+  var newPeriodDisplay = document.getElementById('new-period-until');
+  var buttonText = document.getElementById('button-text');
 
-    if (paymentMonthsSelect) {
-      paymentMonthsSelect.addEventListener('change', function() {
-        selectedMonths = parseInt(this.value) || 1;
-        currentAmount = phpAmountRaw * selectedMonths;
+  if (paymentMonthsSelect) {
+    paymentMonthsSelect.addEventListener('change', function() {
+      selectedMonths = parseInt(this.value) || 1;
+      currentAmount = phpAmountRaw * selectedMonths;
 
-        // Update displayed amount
-        if (amountDisplay) {
-          amountDisplay.textContent = '€' + currentAmount.toFixed(2);
+      // Update displayed amount
+      if (amountDisplay) {
+        amountDisplay.textContent = '€' + currentAmount.toFixed(2);
+      }
+
+      // Update button text
+      if (buttonText) {
+        buttonText.textContent = 'Pay €' + currentAmount.toFixed(2);
+      }
+
+      // Calculate and show new period_until
+      if (selectedMonths > 1 && currentPeriodUntil && extensionInfo && newPeriodDisplay) {
+        var currentDate = new Date(currentPeriodUntil);
+        if (!isNaN(currentDate.getTime())) {
+          var newDate = new Date(currentDate);
+          newDate.setMonth(newDate.getMonth() + selectedMonths);
+          var formattedDate = newDate.toISOString().split('T')[0];
+
+          newPeriodDisplay.textContent = formattedDate;
+          extensionInfo.style.display = 'block';
         }
-
-        // Update button text
-        if (buttonText) {
-          buttonText.textContent = 'Pay €' + currentAmount.toFixed(2);
-        }
-
-        // Calculate and show new period_until
-        if (selectedMonths > 1 && currentPeriodUntil && extensionInfo && newPeriodDisplay) {
-          var currentDate = new Date(currentPeriodUntil);
-          if (!isNaN(currentDate.getTime())) {
-            var newDate = new Date(currentDate);
-            newDate.setMonth(newDate.getMonth() + selectedMonths);
-            var formattedDate = newDate.toISOString().split('T')[0];
-
-            newPeriodDisplay.textContent = formattedDate;
-            extensionInfo.style.display = 'block';
-          }
-        } else if (extensionInfo) {
-          extensionInfo.style.display = 'none';
-        }
-      });
-    }
+      } else if (extensionInfo) {
+        extensionInfo.style.display = 'none';
+      }
+    });
   }
 });
 </script>
