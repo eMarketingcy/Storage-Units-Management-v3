@@ -97,7 +97,7 @@ class SUM_Payment_History {
      * @param float $amount Amount paid
      * @return bool True on success, false on failure
      */
-    public function complete_payment($payment_token, $transaction_id, $amount) {
+    public function complete_payment($payment_token, $transaction_id, $amount, $payment_months = 1) {
         global $wpdb;
 
         $result = $wpdb->update(
@@ -106,10 +106,11 @@ class SUM_Payment_History {
                 'transaction_id' => $transaction_id,
                 'amount' => $amount,
                 'payment_date' => current_time('mysql'),
+                'payment_months' => $payment_months,
                 'status' => 'completed'
             ),
             array('payment_token' => $payment_token, 'status' => 'pending'),
-            array('%s', '%f', '%s', '%s'),
+            array('%s', '%f', '%s', '%d', '%s'),
             array('%s', '%s')
         );
 

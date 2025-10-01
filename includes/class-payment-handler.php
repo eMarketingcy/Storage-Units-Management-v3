@@ -631,8 +631,8 @@ public function process_stripe_payment() {
         require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
     }
     $history = new SUM_Payment_History();
-    $history_result = $history->complete_payment($payment_token, $result['id'], $amount / 100);
-    error_log('SUM Payment: History completed - result=' . ($history_result ? 'success' : 'failed'));
+    $history_result = $history->complete_payment($payment_token, $result['id'], $amount / 100, $payment_months);
+    error_log('SUM Payment: History completed - result=' . ($history_result ? 'success' : 'failed') . ", months={$payment_months}");
 
     // Send payment confirmation email with receipt
     error_log('SUM Payment: Sending receipt email');
