@@ -230,6 +230,61 @@ if (count($rentals) === 1 && $froms && $untils) {
             $body = wpautop($body);
         }
 
+        // Create pending payment history record BEFORE sending invoice
+        if (!class_exists('SUM_Payment_History')) {
+            require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
+        }
+        $payment_history = new SUM_Payment_History();
+
+        $currency = strtoupper($this->get_setting('currency', 'EUR'));
+        $customer_name = $customer['full_name'] ?? 'Unknown Customer';
+
+        // Build items array with expected until dates
+        $items_paid = array();
+        foreach ($rentals as $rental) {
+            $months_due = 1;
+            $monthly_price = floatval($rental['monthly_price'] ?? 0);
+
+            // Calculate expected until date after payment
+            $expected_until = isset($rental['period_until']) ? $rental['period_until'] : date('Y-m-d');
+            if (!empty($rental['period_from']) && !empty($rental['period_until'])) {
+                if (!function_exists('calculate_billing_months')) {
+                    require_once SUM_PLUGIN_PATH . 'includes/class-rental-billing-calculator.php';
+                }
+                if (function_exists('calculate_billing_months')) {
+                    try {
+                        $billing_result = calculate_billing_months(
+                            $rental['period_from'],
+                            $rental['period_until'],
+                            array('monthly_price' => $monthly_price)
+                        );
+                        $months_due = isset($billing_result['occupied_months']) ? (int)$billing_result['occupied_months'] : 1;
+                        if ($months_due < 1) $months_due = 1;
+                    } catch (Exception $e) {
+                        $months_due = 1;
+                    }
+                }
+                $expected_until = date('Y-m-d', strtotime($expected_until . ' +' . $months_due . ' months'));
+            }
+
+            $items_paid[] = array(
+                'type' => $rental['type'],
+                'name' => $rental['name'] ?? 'Unknown',
+                'period_until' => $expected_until,
+                'monthly_price' => $monthly_price
+            );
+        }
+
+        $payment_history->create_pending_payment(
+            $customer_id,
+            $customer_name,
+            $token,
+            $currency,
+            1, // Total months - use 1 as default, real calculation happens on payment
+            $items_paid
+        );
+        error_log("SUM Customer: Created pending payment history for customer {$customer_id}, token {$token}");
+
         // 5) Send
         $to      = $customer['email'];
         $headers = ['Content-Type: text/html; charset=UTF-8'];

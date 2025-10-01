@@ -239,6 +239,42 @@ if (stripos($body, '<table') === false && stripos($body, '<a ') === false) {
         $attachments[] = $pdf_content;
     }
 
+    // Create pending payment history record BEFORE sending invoice
+    if (!class_exists('SUM_Payment_History')) {
+        require_once SUM_PLUGIN_PATH . 'includes/class-payment-history.php';
+    }
+    $payment_history = new SUM_Payment_History();
+
+    $currency = strtoupper($wpdb->get_var($wpdb->prepare(
+        "SELECT setting_value FROM $settings_table WHERE setting_key = %s", 'currency'
+    )));
+    if (empty($currency)) $currency = 'EUR';
+
+    $customer_id = isset($pallet['customer_id']) ? intval($pallet['customer_id']) : 0;
+
+    // Calculate expected until date after payment
+    $expected_until = isset($pallet['period_until']) ? $pallet['period_until'] : date('Y-m-d');
+    if ($months_due > 0) {
+        $expected_until = date('Y-m-d', strtotime($expected_until . ' +' . $months_due . ' months'));
+    }
+
+    $items_paid = array(array(
+        'type' => 'pallet',
+        'name' => isset($pallet['pallet_name']) ? $pallet['pallet_name'] : 'Unknown',
+        'period_until' => $expected_until,
+        'monthly_price' => $monthly_price
+    ));
+
+    $payment_history->create_pending_payment(
+        $customer_id,
+        $customer_name,
+        $token,
+        $currency,
+        $months_due,
+        $items_paid
+    );
+    error_log("SUM Pallet: Created pending payment history for pallet {$pallet_id}, token {$token}");
+
     // Send email
     $headers = array('Content-Type: text/html; charset=UTF-8');
     $sent = wp_mail($customer_email, $subject, $body, $headers, $attachments);
