@@ -464,11 +464,15 @@ public function process_stripe_payment() {
 
     $result = json_decode($body, true);
     if (!$result || !isset($result['id']) || (!isset($result['status']) || $result['status'] !== 'succeeded')) {
+        error_log('SUM Payment ERROR: Payment not successful - ' . json_encode($result));
         $this->send_json_error('Payment was not successful'); return;
     }
 
+    error_log('SUM Payment: Stripe charge SUCCESS - transaction_id=' . $result['id'] . ', amount=' . ($amount/100));
+
     // Mark as paid, clean transients, rotate DB token
     global $wpdb;
+    error_log('SUM Payment: Starting database updates - entity_id=' . $entity_id);
     if ($is_customer) {
         // For customer payments, mark ONLY UNPAID rentals as paid
         if (!class_exists('SUM_Customer_Database')) {
@@ -521,11 +525,15 @@ public function process_stripe_payment() {
     } else {
         $update_result = $this->database->update_unit_payment_details($entity_id, 'paid');
         delete_transient("sum_payment_token_{$entity_id}");
+        error_log('SUM Payment: Updated unit payment status - result=' . ($update_result ? 'success' : 'failed'));
     }
 
     if ($update_result === false) {
+        error_log('SUM Payment ERROR: Database update failed');
         $this->send_json_error('Payment processed but failed to update records'); return;
     }
+
+    error_log('SUM Payment: Payment status updated successfully');
 
     // Log payment details for debugging
     error_log("SUM Payment Processing: entity_id={$entity_id}, is_customer=" . ($is_customer ? 'yes' : 'no') . ", is_pallet=" . ($is_pallet ? 'yes' : 'no') . ", payment_months={$payment_months}");
@@ -593,11 +601,16 @@ public function process_stripe_payment() {
     }
 
     // Record payment in history for ALL payment types
-    $this->record_payment_in_history($entity_id, $is_customer, $is_pallet, $result['id'], $amount / 100, $payment_months);
+    error_log('SUM Payment: Recording payment in history - transaction_id=' . $result['id']);
+    $history_result = $this->record_payment_in_history($entity_id, $is_customer, $is_pallet, $result['id'], $amount / 100, $payment_months);
+    error_log('SUM Payment: History recorded - result=' . ($history_result ? 'success' : 'failed'));
 
     // Send payment confirmation email with receipt
+    error_log('SUM Payment: Sending receipt email');
     $this->send_payment_receipt_email($entity_id, $is_customer, $is_pallet, $result, $amount, $payment_months);
+    error_log('SUM Payment: Receipt email sent');
 
+    error_log('SUM Payment: COMPLETE - All operations finished successfully');
     $this->send_json_success('Payment processed successfully');
 }
 
