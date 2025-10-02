@@ -1,4 +1,4 @@
-# Storage-Units-Management-v3.2.0
+# Storage-Units-Management-v4.0.0
 Comprehensive storage unit management for WordPress: units, pallets, contacts, invoicing (with VAT), Stripe payments, email automation, and an optional Customers module (admin + frontend).
 
 === Storage Unit Manager ===
@@ -7,7 +7,7 @@ Tags: storage, units, management, rental, occupancy, email, notifications, vat, 
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 3.1.3
+Stable tag: 4.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,15 @@ The plugin uses **TCPDF** by default. If Dompdf is present, it will be used; oth
 
 == Changelog ==
 
+= 4.0.0 – 2025-10-01 =
+* **Fixed:** Payment history now correctly displays the number of months paid when customers pay in advance (previously showed "1 month" regardless of actual payment period).
+* **Fixed:** Advance payment period extensions now work correctly - when paying multiple months in advance, rental periods are extended by the correct number of months from their current end date.
+* **Fixed:** Payment history detail modal now shows accurate "Paid Until" dates for each rental item after advance payments are processed.
+* **Improved:** Enhanced `complete_payment()` method in payment history to properly track and store advance payment months.
+* **Improved:** Better logging and debugging for advance payment processing to track period extensions.
+* **Technical:** Updated payment handler to pass payment months parameter through the complete payment workflow.
+* **Technical:** Period extension calculations now correctly use the advance payment months instead of defaulting to single month extensions.
+
 = 3.1.3 – 2025-09-28 =
 * **Fixed:** PDF generation reliability (writes to `/uploads/invoices`, DOMPDF primary + TCPDF fallback, HTML dump on failure).
 * **Fixed:** Company header now reads from `{prefix}_storage_settings` (name, address with line breaks, phone, email, logo).
@@ -79,6 +88,9 @@ The plugin uses **TCPDF** by default. If Dompdf is present, it will be used; oth
 * **Improved:** Defensive SQL preparation and optional debug logging (respects `WP_DEBUG`).
 
 == Upgrade Notice ==
+
+= 4.0.0 =
+Critical bug fixes for advance payment processing! This release ensures that when customers pay for multiple months in advance, the payment history correctly displays the payment period and rental end dates are properly extended. All advance payments made after this update will automatically extend rental periods by the correct number of months. Highly recommended update for all users accepting advance payments.
 
 = 3.1.3 =
 This release tightens identity matching for invoices to stop cross-customer bleed. If you previously relied on **secondary contact** emails or name-only matching, move the billing email to **`primary_contact_email`** on the unit/pallet rows (or ensure a correct `customer_id` column is present). PDFs are now more reliable and include correct company details from plugin settings.
@@ -156,4 +168,5 @@ Adds VAT, invoicing improvements, and Stripe payments. Backup before upgrading.
 == Support ==
 
 For support, contact eMarketing Cyprus or visit selfstorage.cy.
+
 
