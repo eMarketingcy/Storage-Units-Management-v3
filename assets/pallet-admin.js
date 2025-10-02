@@ -194,10 +194,20 @@ $('#customer-creation-form').on('submit', function(e) {
                         <div><strong>Email:</strong> ${pallet.customer_email || 'N/A'}</div>
                         ${pallet.period_from && pallet.period_until ? 
                             `<div><strong>Period:</strong> ${pallet.period_from} - ${pallet.period_until}</div>` : ''}
-                        ${emailForActions ? 
-                            `<button type="button" class="send-invoice-btn" data-pallet-id="${pallet.id}" style="margin-top: 10px; background: #00a32a; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📧 Send Invoice</button>` : ''}
-                        ${emailForActions ? 
-                            `<button type="button" class="regenerate-pdf-btn" data-pallet-id="${pallet.id}" style="margin-top: 10px; margin-left: 5px; background: #2271b1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📄 PDF</button>` : ''}
+                        <div class="sum-action-buttons" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            ${emailForActions ?
+                                `<button type="button" class="send-invoice-btn sum-btn-modern" data-pallet-id="${pallet.id}" title="Send Invoice">
+                                    <span class="dashicons dashicons-email"></span> Send Invoice
+                                </button>` : ''}
+                            ${emailForActions ?
+                                `<button type="button" class="regenerate-pdf-btn sum-btn-modern sum-btn-secondary" data-pallet-id="${pallet.id}" title="Generate PDF">
+                                    <span class="dashicons dashicons-pdf"></span> PDF
+                                </button>` : ''}
+                            ${pallet.customer_id ?
+                                `<button type="button" class="send-intake-link-btn sum-btn-modern sum-btn-accent" data-pallet-id="${pallet.id}" title="Send Intake Form Link">
+                                    <span class="dashicons dashicons-clipboard"></span> Send Intake Link
+                                </button>` : ''}
+                        </div>
                     </div>
                     ${pallet.secondary_contact_name ? `
                         <div class="sum-secondary-contact">
@@ -533,8 +543,40 @@ function saveNewCustomer() {
     function showSuccess(message) {
         alert('Success: ' + message);
     }
-    
+
     function showError(message) {
         alert('Error: ' + message);
     }
+
+    function sendIntakeLink(palletId) {
+        if (!confirm('Send intake form link to this customer?')) {
+            return;
+        }
+
+        $.ajax({
+            url: sum_pallet_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_send_intake_link',
+                nonce: sum_pallet_ajax.nonce,
+                unit_id: palletId,
+                type: 'pallet'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showSuccess(response.data.message || 'Intake link sent successfully');
+                } else {
+                    showError(response.data.message || 'Failed to send intake link');
+                }
+            },
+            error: function() {
+                showError('Failed to send intake link');
+            }
+        });
+    }
+
+    $(document).on('click', '.send-intake-link-btn', function() {
+        const palletId = $(this).data('pallet-id');
+        sendIntakeLink(palletId);
+    });
 });

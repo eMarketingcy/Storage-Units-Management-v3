@@ -399,17 +399,24 @@ class SUM_Customer_Intake_Form {
 
     /** ---------- Handle submit ---------- */
     public static function handle_submit() {
+        set_time_limit(300);
+        @ini_set('max_execution_time', 300);
+        @ini_set('upload_max_filesize', '50M');
+        @ini_set('post_max_size', '50M');
+
         if ( ! isset($_POST['sum_nonce']) || ! wp_verify_nonce($_POST['sum_nonce'], self::NONCE) ) {
-            wp_die('Security check failed');
+            wp_die('Security check failed', 'Security Error', ['response' => 403]);
         }
 
         // Server-side required validations
         $req = ['personal_first','personal_surname','home_address','district','post_code','home_tel','mobile','email'];
         foreach ($req as $key) {
-            if (empty($_POST[$key])) wp_die('Missing required field: '.esc_html($key));
+            if (empty($_POST[$key])) {
+                wp_die('Missing required field: '.esc_html($key), 'Validation Error', ['response' => 400]);
+            }
         }
         if (empty($_FILES['id_document']['name']) || empty($_FILES['proof_address']['name'])) {
-            wp_die('ID/Passport and Utility Bill uploads are required.');
+            wp_die('ID/Passport and Utility Bill uploads are required.', 'Upload Error', ['response' => 400]);
         }
 
         $f = function($key){ return isset($_POST[$key]) ? sanitize_text_field(wp_unslash($_POST[$key])) : ''; };
@@ -456,17 +463,35 @@ class SUM_Customer_Intake_Form {
         $proof_id   = self::save_upload_to_media('proof_address', $post_id);
         if (!$id_doc_id || !$proof_id) {
             wp_delete_post($post_id, true);
-            wp_die('Upload failed. Please try again.');
+            error_log('SUM Intake Form: Upload failed for post_id ' . $post_id);
+            error_log('ID Document ID: ' . $id_doc_id);
+            error_log('Proof Address ID: ' . $proof_id);
+            if (isset($_FILES['id_document']['error'])) {
+                error_log('ID Document Error: ' . $_FILES['id_document']['error']);
+            }
+            if (isset($_FILES['proof_address']['error'])) {
+                error_log('Proof Address Error: ' . $_FILES['proof_address']['error']);
+            }
+            wp_die('Upload failed. Please ensure files are under 10MB and try again.', 'Upload Error', ['response' => 400]);
         }
         update_post_meta($post_id, 'id_document_attachment_id', (int)$id_doc_id);
         update_post_meta($post_id, 'proof_address_attachment_id', (int)$proof_id);
 
+        error_log('SUM Intake Form: Successfully saved application ' . $post_id);
         wp_safe_redirect( add_query_arg(['sum_submitted'=>'1'], wp_get_referer() ?: home_url()) );
         exit;
     }
 
     protected static function save_upload_to_media($field, $post_id) {
-        if (empty($_FILES[$field]['name'])) return 0;
+        if (empty($_FILES[$field]['name'])) {
+            error_log("SUM Intake: No file uploaded for field: $field");
+            return 0;
+        }
+
+        if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+            error_log("SUM Intake: Upload error for $field: " . $_FILES[$field]['error']);
+            return 0;
+        }
 
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -480,7 +505,10 @@ class SUM_Customer_Intake_Form {
             ],
         ];
         $file = wp_handle_upload($_FILES[$field], $overrides);
-        if (isset($file['error'])) return 0;
+        if (isset($file['error'])) {
+            error_log("SUM Intake: wp_handle_upload error for $field: " . $file['error']);
+            return 0;
+        }
 
         $attachment = [
             'post_mime_type' => $file['type'],

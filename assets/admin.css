@@ -525,3 +525,70 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+.sum-btn-modern {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #00a32a;
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.sum-btn-modern:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    background: #008a24;
+}
+
+.sum-btn-modern:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.sum-btn-modern .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.sum-btn-modern.sum-btn-secondary {
+    background: #2271b1;
+}
+
+.sum-btn-modern.sum-btn-secondary:hover {
+    background: #135e96;
+}
+
+.sum-btn-modern.sum-btn-accent {
+    background: #f97316;
+}
+
+.sum-btn-modern.sum-btn-accent:hover {
+    background: #ea580c;
+}
+
+.sum-action-buttons {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .sum-action-buttons {
+        flex-direction: column;
+    }
+
+    .sum-btn-modern {
+        width: 100%;
+        justify-content: center;
+    }
+}

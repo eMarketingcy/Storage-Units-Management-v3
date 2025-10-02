@@ -68,6 +68,7 @@ class SUM_Ajax_Handlers {
 add_action('wp_ajax_sum_save_customer_frontend', array($this, 'save_customer_frontend'));
 add_action('wp_ajax_sum_delete_customer_frontend', array($this, 'delete_customer_frontend'));
         add_action('wp_ajax_sum_test_billing', array($this, 'test_billing'));
+        add_action('wp_ajax_sum_send_intake_link', array($this, 'send_intake_link'));
 
     }
     
@@ -831,6 +832,74 @@ public function delete_customer_frontend() {
             wp_send_json_success(['message' => 'Billing process completed successfully. Check error log for details.']);
         } else {
             wp_send_json_error(['message' => 'Billing automation class not found']);
+        }
+    }
+
+    public function send_intake_link() {
+        check_ajax_referer('sum_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => 'Permission denied']);
+        }
+
+        $unit_id = isset($_POST['unit_id']) ? absint($_POST['unit_id']) : 0;
+        $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : 'unit';
+
+        if (!$unit_id) {
+            wp_send_json_error(['message' => 'Invalid unit/pallet ID']);
+        }
+
+        global $wpdb;
+        $table = $type === 'pallet' ? $wpdb->prefix . 'storage_pallets' : $wpdb->prefix . 'storage_units';
+        $item = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $unit_id), ARRAY_A);
+
+        if (!$item) {
+            wp_send_json_error(['message' => 'Unit/pallet not found']);
+        }
+
+        if (empty($item['customer_id'])) {
+            wp_send_json_error(['message' => 'No customer assigned to this unit/pallet']);
+        }
+
+        $customer = $this->customer_database->get_customer($item['customer_id']);
+        if (!$customer || empty($customer['email'])) {
+            wp_send_json_error(['message' => 'Customer email not found']);
+        }
+
+        $page_id = get_option('sum_intake_form_page_id');
+        if (!$page_id) {
+            $existing_page = get_page_by_path('storage-intake-form');
+            if ($existing_page) {
+                $page_id = $existing_page->ID;
+            } else {
+                $page_id = wp_insert_post([
+                    'post_title' => 'Storage Intake Form',
+                    'post_content' => '[sum_customer_intake_form]',
+                    'post_status' => 'publish',
+                    'post_type' => 'page',
+                    'post_name' => 'storage-intake-form'
+                ]);
+            }
+            update_option('sum_intake_form_page_id', $page_id);
+        }
+
+        $url = SUM_Customer_Intake_Form::share_url($page_id, $unit_id, $customer['email']);
+
+        $unit_name = $type === 'pallet' ? $item['pallet_name'] : $item['unit_name'];
+        $subject = sprintf('Complete Your Storage Agreement - %s', $unit_name);
+        $message = "Hello {$customer['full_name']},\n\n";
+        $message .= "Please complete your storage agreement by clicking the link below:\n\n";
+        $message .= $url . "\n\n";
+        $message .= "This link will expire in 14 days.\n\n";
+        $message .= "Thank you,\n";
+        $message .= get_bloginfo('name');
+
+        $sent = wp_mail($customer['email'], $subject, $message);
+
+        if ($sent) {
+            wp_send_json_success(['message' => 'Intake link sent successfully to ' . $customer['email']]);
+        } else {
+            wp_send_json_error(['message' => 'Failed to send email. Please check your email settings.']);
         }
     }
 }

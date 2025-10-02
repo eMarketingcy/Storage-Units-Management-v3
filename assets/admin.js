@@ -216,12 +216,22 @@ $('#customer-creation-form').on('submit', function(e) {
                         <div><strong>Phone:</strong> ${unit.customer_phone || 'N/A'}</div>
                         <div><strong>WhatsApp:</strong> ${unit.customer_whatsapp || 'N/A'}</div>
                         <div><strong>Email:</strong> ${unit.customer_email || 'N/A'}</div>
-                        ${unit.period_from && unit.period_until ? 
+                        ${unit.period_from && unit.period_until ?
                             `<div><strong>Period:</strong> ${unit.period_from} - ${unit.period_until}</div>` : ''}
-                        ${emailForActions ? 
-                            `<button type="button" class="send-invoice-btn" data-unit-id="${unit.id}" style="margin-top: 10px; background: #00a32a; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📧 Send Invoice</button>` : ''}
-                        ${emailForActions ? 
-                            `<button type="button" class="regenerate-pdf-btn" data-unit-id="${unit.id}" style="margin-top: 10px; margin-left: 5px; background: #2271b1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">📄 PDF</button>` : ''}
+                        <div class="sum-action-buttons" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            ${emailForActions ?
+                                `<button type="button" class="send-invoice-btn sum-btn-modern" data-unit-id="${unit.id}" title="Send Invoice">
+                                    <span class="dashicons dashicons-email"></span> Send Invoice
+                                </button>` : ''}
+                            ${emailForActions ?
+                                `<button type="button" class="regenerate-pdf-btn sum-btn-modern sum-btn-secondary" data-unit-id="${unit.id}" title="Generate PDF">
+                                    <span class="dashicons dashicons-pdf"></span> PDF
+                                </button>` : ''}
+                            ${unit.customer_id ?
+                                `<button type="button" class="send-intake-link-btn sum-btn-modern sum-btn-accent" data-unit-id="${unit.id}" title="Send Intake Form Link">
+                                    <span class="dashicons dashicons-clipboard"></span> Send Intake Link
+                                </button>` : ''}
+                        </div>
                     </div>
                     ${unit.secondary_contact_name ? `
                         <div class="sum-secondary-contact">
@@ -617,4 +627,36 @@ $('#customer-creation-form').on('submit', function(e) {
             }
         });
     }
+
+    function sendIntakeLink(unitId) {
+        if (!confirm('Send intake form link to this customer?')) {
+            return;
+        }
+
+        $.ajax({
+            url: sum_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_send_intake_link',
+                nonce: sum_ajax.nonce,
+                unit_id: unitId,
+                type: 'unit'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showSuccess(response.data.message || 'Intake link sent successfully');
+                } else {
+                    showError(response.data.message || 'Failed to send intake link');
+                }
+            },
+            error: function() {
+                showError('Failed to send intake link');
+            }
+        });
+    }
+
+    $(document).on('click', '.send-intake-link-btn', function() {
+        const unitId = $(this).data('unit-id');
+        sendIntakeLink(unitId);
+    });
 });

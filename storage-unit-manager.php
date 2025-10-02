@@ -262,9 +262,10 @@ require_once SUM_PLUGIN_PATH . 'includes/class-pdf-generator.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-pallet-database.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-pallet-ajax-handlers.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-pallet-email-handler.php';
-require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php'; 
+require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-customer-pdf-generator.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-customer-email-handler.php';
+require_once SUM_PLUGIN_PATH . 'includes/class-sum-customer-intake-form.php';
 
 // === PDF libs paths ===
 // Where Dompdf will live: wp-content/plugins/storage-unit-manager/lib/dompdf/
@@ -373,6 +374,9 @@ public function init() {
         $this->billing_automation = new SUM_Billing_Automation();
         $this->billing_automation->init();
     }
+
+    // Initialize customer intake form
+    SUM_Customer_Intake_Form::boot();
 
     // 4. Register the AJAX actions from the now-initialized handlers.
     $this->ajax_handlers->init();
