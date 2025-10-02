@@ -138,38 +138,4 @@
   document.head.appendChild(style);
 })();
 
-(function(){
-  function postWithRest(form){
-    if (!window.sumIntake || !sumIntake.restUrl) return false;
-    var fd = new FormData(form);
-    return fetch(sumIntake.restUrl, {
-      method: 'POST',
-      body: fd,
-      credentials: 'same-origin'
-    }).then(function(r){ return r.json(); })
-      .then(function(data){
-        if (data && data.ok) {
-          window.location.href = data.redirect || (window.location.href + (window.location.search ? '&':'?') + 'sum_submitted=1');
-          return true;
-        }
-        if (data && data.error) alert(data.error);
-        return false;
-      }).catch(function(){
-        return false;
-      });
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    var form = document.querySelector('.sum-form');
-    if (!form) return;
-
-    form.addEventListener('submit', function(e){
-      // let native HTML5 validation run first
-      if (!form.checkValidity()) return;
-      e.preventDefault();
-      postWithRest(form).then(function(ok){
-        if (!ok) form.submit(); // fallback to admin-post if REST failed
-      });
-    });
-  });
-})();
+// This section is intentionally removed - form now submits directly via admin-post

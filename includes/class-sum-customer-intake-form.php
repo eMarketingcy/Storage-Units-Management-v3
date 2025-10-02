@@ -1,594 +1,601 @@
-/* Storage Unit Manager Admin Styles */
-
-.sum-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin: 20px 0;
-}
-
-.sum-toggle-wrapper input {
-    display: none;
-}
-
-.sum-stat-card {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.sum-stat-icon {
-    font-size: 24px;
-    margin-right: 15px;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-}
-
-.sum-stat-total { background: #e3f2fd; }
-.sum-stat-occupied { background: #ffebee; }
-.sum-stat-available { background: #e8f5e8; }
-.sum-stat-unpaid { background: #fff3e0; }
-
-.sum-stat-label {
-    font-size: 14px;
-    color: #666;
-    margin-bottom: 5px;
-}
-
-.sum-stat-value {
-    font-size: 24px;
-    font-weight: bold;
-    color: #333;
-}
-
-.sum-controls {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    margin: 20px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.sum-search-filter {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-.sum-action-buttons {
-    display: flex;
-    gap: 10px;
-}
-
-.sum-search-input, .sum-filter-select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.sum-search-input {
-    width: 250px;
-}
-
-.sum-units-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 20px;
-    margin: 20px 0;
-}
-
-.sum-unit-card {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: box-shadow 0.2s;
-}
-
-.sum-unit-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.sum-unit-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 15px;
-}
-
-.sum-unit-info h3 {
-    margin: 0 0 5px 0;
-    font-size: 18px;
-    color: #333;
-}
-
-.sum-unit-info p {
-    margin: 0;
-    color: #666;
-    font-size: 14px;
-}
-
-.sum-badges {
-    margin-top: 10px;
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-
-.sum-payment-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.sum-payment-paid {
-    background: #d4edda;
-    color: #155724;
-}
-
-.sum-payment-unpaid {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.sum-past-due-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    background: #dc3545;
-    color: white;
-}
-
-.sum-unit-actions {
-    display: flex;
-    gap: 5px;
-}
-
-.sum-unit-actions button {
-    background: none;
-    border: none;
-    padding: 8px;
-    border-radius: 4px;
-    cursor: pointer;
-    color: #666;
-    transition: all 0.2s;
-}
-
-.sum-unit-actions button:hover {
-    background: #f0f0f0;
-}
-
-.sum-unit-actions .edit-btn:hover { color: #0073aa; }
-.sum-unit-actions .send-invoice-btn:hover { color: #00a32a; }
-.sum-unit-actions .delete-btn:hover { color: #d63638; }
-
-.sum-unit-status {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 15px 0;
-    padding: 10px;
-    background: #f9f9f9;
-    border-radius: 4px;
-}
-
-.sum-toggle-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
-.sum-toggle-input {
-    display: none;
-}
-
-.sum-toggle-label {
-    display: block;
-    width: 44px;
-    height: 24px;
-    background: #ccc;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background 0.3s;
-    position: relative;
-}
-
-.sum-toggle-input:checked + .sum-toggle-label {
-    background: #d63638;
-}
-
-.sum-toggle-slider {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    background: white;
-    border-radius: 50%;
-    transition: transform 0.3s;
-}
-
-.sum-toggle-input:checked + .sum-toggle-label .sum-toggle-slider {
-    transform: translateX(20px);
-}
-
-.sum-contact-info {
-    background: #f9f9f9;
-    border-radius: 4px;
-    padding: 15px;
-    margin-top: 15px;
-}
-
-.sum-contact-info h4 {
-    margin: 0 0 10px 0;
-    color: #333;
-    font-size: 14px;
-}
-
-.sum-contact-details {
-    font-size: 13px;
-    color: #666;
-    line-height: 1.5;
-}
-
-.sum-contact-details div {
-    margin-bottom: 5px;
-}
-
-.sum-secondary-contact {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px solid #ddd;
-}
-
-.sum-no-units {
-    text-align: center;
-    padding: 60px 20px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-
-.sum-no-units-icon {
-    font-size: 48px;
-    margin-bottom: 20px;
-}
-
-.sum-no-units h3 {
-    color: #333;
-    margin-bottom: 10px;
-}
-
-.sum-no-units p {
-    color: #666;
-    margin-bottom: 20px;
-}
-
-/* Modal Styles */
-.sum-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 100000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.sum-modal-content {
-    background: #fff;
-    border-radius: 8px;
-    width: 100%;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-.sum-modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 20px;
-    border-bottom: 1px solid #ddd;
-    background: #f9f9f9;
-    border-radius: 8px 8px 0 0;
-}
-
-.sum-modal-header h2 {
-    margin: 0;
-    color: #333;
-}
-
-.sum-modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #666;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-}
-
-.sum-modal-close:hover {
-    background: #f0f0f0;
-}
-
-.sum-form {
-    padding: 20px;
-}
-
-.sum-form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.sum-form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.sum-form-group label {
-    margin-bottom: 5px;
-    font-weight: 600;
-    color: #333;
-}
-
-.sum-form-group input, .sum-form-group select {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.sum-form-group input:focus, .sum-form-group select:focus {
-    outline: none;
-    border-color: #0073aa;
-    box-shadow: 0 0 0 2px rgba(0,115,170,0.1);
-}
-
-.sum-occupancy-toggle {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    background: #f9f9f9;
-    border-radius: 4px;
-    margin-bottom: 20px;
-}
-
-.sum-occupancy-toggle label {
-    font-weight: 600;
-    color: #333;
-}
-
-.sum-occupancy-details {
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.sum-contact-section {
-    background: #f9f9f9;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 15px;
-}
-
-.sum-contact-section h3 {
-    margin: 0 0 15px 0;
-    color: #333;
-    font-size: 16px;
-}
-
-.sum-secondary-toggle {
-    margin-bottom: 15px;
-}
-
-.sum-secondary-toggle label {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    color: #0073aa;
-}
-
-.sum-secondary-toggle input {
-    margin-right: 8px;
-}
-
-.sum-form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    padding-top: 20px;
-    border-top: 1px solid #ddd;
-}
-
-.sum-bulk-preview {
-    background: #e3f2fd;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 20px;
-}
-
-.sum-bulk-preview h4 {
-    margin: 0 0 10px 0;
-    color: #333;
-}
-
-.sum-bulk-preview p {
-    margin: 0;
-    color: #666;
-    font-style: italic;
-}
-
-/* Status indicators */
-.sum-status-occupied {
-    color: #d63638;
-    font-weight: 600;
-}
-
-.sum-status-available {
-    color: #00a32a;
-    font-weight: 600;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .sum-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .sum-search-filter {
-        justify-content: stretch;
-    }
-    
-    .sum-search-input {
-        width: 100%;
-    }
-    
-    .sum-units-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .sum-form-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .sum-modal {
-        padding: 10px;
-    }
-    
-    .sum-unit-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    
-}
-
-
-/* Loading state */
-.sum-loading {
-    text-align: center;
-    padding: 40px;
-    color: #666;
-}
-
-.sum-loading::after {
-    content: '';
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #ddd;
-    border-top: 2px solid #0073aa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-left: 10px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.sum-btn-modern {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: #00a32a;
-    color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.sum-btn-modern:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    background: #008a24;
-}
-
-.sum-btn-modern:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.sum-btn-modern .dashicons {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-}
-
-.sum-btn-modern.sum-btn-secondary {
-    background: #2271b1;
-}
-
-.sum-btn-modern.sum-btn-secondary:hover {
-    background: #135e96;
-}
-
-.sum-btn-modern.sum-btn-accent {
-    background: #f97316;
-}
-
-.sum-btn-modern.sum-btn-accent:hover {
-    background: #ea580c;
-}
-
-.sum-action-buttons {
-    margin-top: 12px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-@media (max-width: 480px) {
-    .sum-action-buttons {
-        flex-direction: column;
+<?php
+if ( ! defined('ABSPATH') ) exit;
+
+/**
+ * Unit-aware Customer Intake Form (modern UI/UX, mobile-first)
+ * Shortcode: [sum_customer_intake_form unit_id="123"]
+ */
+class SUM_Customer_Intake_Form {
+    const CPT          = 'sum_application';
+    const NONCE        = 'sum_intake_nonce';
+    const ACTION       = 'sum_save_intake';
+    const QV           = 'sum_token';
+    const EXPIRES_DAYS = 14;
+    const VAT_RATE     = 0.19; // 19%
+
+    public static function boot() {
+        add_action('init', [__CLASS__, 'register_cpt']);
+        add_shortcode('sum_customer_intake_form', [__CLASS__, 'render_shortcode']);
+        add_action('admin_post_' . self::ACTION, [__CLASS__, 'handle_submit']);
+        add_action('admin_post_nopriv_' . self::ACTION, [__CLASS__, 'handle_submit']);
+
+        add_action('wp_enqueue_scripts', [__CLASS__, 'enqueue_assets']);
+
+        add_action('admin_menu', [__CLASS__, 'admin_menu']);
+        add_action('admin_post_sum_send_intake_link', [__CLASS__, 'handle_send_link']);
+
+        add_filter('query_vars', function($vars){ $vars[] = self::QV; return $vars; });
     }
 
-    .sum-btn-modern {
-        width: 100%;
-        justify-content: center;
+    public static function register_cpt() {
+        register_post_type(self::CPT, [
+            'labels' => [
+                'name' => 'Storage Applications',
+                'singular_name' => 'Storage Application'
+            ],
+            'public' => false,
+            'show_ui' => true,
+            'menu_position' => 26,
+            'supports' => ['title'],
+        ]);
+    }
+
+    /** Enqueue external CSS/JS from /assets */
+    public static function enqueue_assets() {
+        $base = plugin_dir_url(dirname(__FILE__)); // points to plugin root/
+        $path = plugin_dir_path(dirname(__FILE__)); // filesystem path to plugin root/
+
+        $css_file = 'assets/sum-intake.css';
+        $js_file  = 'assets/sum-intake.js';
+
+        $css_ver = file_exists($path . $css_file) ? filemtime($path . $css_file) : '1.0.0';
+        $js_ver  = file_exists($path . $js_file)  ? filemtime($path . $js_file)  : '1.0.0';
+
+        wp_enqueue_style('sum-intake', $base . $css_file, [], $css_ver);
+        wp_enqueue_script('sum-intake', $base . $js_file, [], $js_ver, true);
+    }
+
+    /** ---------- Fetchers (adapt via filters if schema differs) ---------- */
+    protected static function fetch_unit($unit_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'storage_units';
+        $unit  = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $unit_id), ARRAY_A);
+        return apply_filters('sum_intake_fetch_unit', $unit, $unit_id);
+    }
+    protected static function fetch_customer($customer_id) {
+        global $wpdb;
+        $table = $wpdb->prefix . 'storage_customers';
+        $c     = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id=%d", $customer_id), ARRAY_A);
+        return apply_filters('sum_intake_fetch_customer', $c, $customer_id);
+    }
+
+    /** ---------- Signed link utils ---------- */
+    protected static function make_token($unit_id, $customer_email, $expires_ts) {
+        $data = $unit_id . '|' . strtolower(trim((string)$customer_email)) . '|' . $expires_ts;
+        return hash_hmac('sha256', $data, wp_salt('auth'));
+    }
+    protected static function verify_token($token, $unit_id, $customer_email, $expires_ts) {
+        if (time() > (int)$expires_ts) return false;
+        return hash_equals(self::make_token($unit_id, $customer_email, $expires_ts), $token);
+    }
+    public static function share_url($page_id, $unit_id, $customer_email) {
+        $expires_ts = time() + DAY_IN_SECONDS * self::EXPIRES_DAYS;
+        $token = self::make_token($unit_id, $customer_email, $expires_ts);
+        return add_query_arg([
+            'unit_id' => (int)$unit_id,
+            self::QV  => base64_encode(json_encode(['u'=>$unit_id,'e'=>$expires_ts,'m'=>rawurlencode($customer_email),'t'=>$token])),
+        ], get_permalink($page_id));
+    }
+
+    /** ---------- Shortcode ---------- */
+    public static function render_shortcode($atts=[]) {
+        $atts = shortcode_atts(['unit_id' => 0], $atts, 'sum_customer_intake_form');
+        $unit_id = (int)($atts['unit_id'] ?: ($_GET['unit_id'] ?? 0));
+
+        // Signed token support (public prefill)
+        $token_ok = false; $prefill_customer_email='';
+        if (!empty($_GET[self::QV])) {
+            $payload = json_decode(base64_decode(sanitize_text_field($_GET[self::QV])), true);
+            if (is_array($payload) && isset($payload['u'],$payload['e'],$payload['m'],$payload['t'])) {
+                $prefill_customer_email = rawurldecode($payload['m']);
+                $token_ok = self::verify_token($payload['t'], (int)$payload['u'], $prefill_customer_email, (int)$payload['e']);
+                if ($token_ok) $unit_id = (int)$payload['u'];
+            }
+        }
+
+        $unit = $unit_id ? self::fetch_unit($unit_id) : null;
+        $customer = null;
+        if ($unit && !empty($unit['customer_id'])) {
+            $customer = self::fetch_customer((int)$unit['customer_id']);
+        }
+
+        // Prefill: split full_name into first/surname (basic split on last space)
+        $first = ''; $last = '';
+        if (!empty($customer['full_name'])) {
+            $parts = preg_split('/\s+/', trim($customer['full_name']));
+            if ($parts) {
+                $last  = array_pop($parts);
+                $first = implode(' ', $parts);
+                if ($first === '') { $first = $last; $last=''; }
+            }
+        }
+
+        $monthly_ex  = isset($unit['monthly_price']) ? floatval($unit['monthly_price']) : 0.0;
+        $monthly_inc = $monthly_ex > 0 ? round($monthly_ex * (1 + self::VAT_RATE), 2) : 0.0;
+
+        $d = [
+            // Personal (required)
+            'personal_first'  => $first,
+            'personal_surname'=> $last,
+            'home_address'    => $customer['address']   ?? '',
+            'district'        => $customer['district']  ?? '',
+            'post_code'       => $customer['post_code'] ?? '',
+            'home_tel'        => '',
+            'mobile'          => $customer['phone']     ?? '',
+            'email'           => $customer['email']     ?? ($token_ok ? $prefill_customer_email : ''),
+
+            // Business (toggle)
+            'company_name'    => '',
+            'company_reg'     => '',
+            'company_address' => '',
+            'company_district'=> '',
+            'company_post_code'=> '',
+
+            // Unit (pre-filled)
+            'unit_no'         => $unit ? ($unit['unit_name'] ?? $unit['id']) : '',
+            'unit_type'       => get_bloginfo('name'),
+            'unit_size'       => $unit['size'] ?? ($unit['sqm'] ?? ''),
+            'storage_term'    => '1',
+            'period_from'     => '',
+            'period_to'       => '',
+
+            // Reason & alternative contact (toggle)
+            'reason'          => '',
+            'alt_first'       => '',
+            'alt_surname'     => '',
+            'alt_mobile'      => '',
+            'alt_email'       => '',
+
+            // Price (info only)
+            'monthly_ex_vat'  => $monthly_ex,
+            'monthly_inc_vat' => $monthly_inc,
+
+            // Acceptance
+            'sign_print_name' => '',
+            'sign_date'       => current_time('Y-m-d'),
+            'accept_terms'    => '',
+        ];
+
+        $action = esc_url( admin_url('admin-post.php') );
+        $nonce = wp_create_nonce(self::NONCE);
+
+        // Thank-you toast
+        if (!empty($_GET['sum_submitted'])) {
+            echo '<div class="sum-toast" role="status" aria-live="polite">Thanks! Your application was submitted.</div>';
+        }
+
+        ob_start(); ?>
+        <form class="sum-card sum-form" method="post" action="<?php echo $action; ?>" enctype="multipart/form-data" novalidate>
+            <div class="sum-header">
+                <div class="sum-title">SELF STORAGE LICENCE AGREEMENT</div>
+                <div class="sum-subtitle"><?php echo esc_html(get_bloginfo('name')); ?></div>
+            </div>
+
+            <input type="hidden" name="action" value="<?php echo self::ACTION; ?>">
+            <input type="hidden" name="sum_nonce" value="<?php echo $nonce; ?>">
+            <input type="hidden" name="ctx_unit_id" value="<?php echo esc_attr($unit_id); ?>">
+
+            <!-- PERSONAL STORAGE -->
+            <section class="sum-section">
+                <h3 class="sum-h">PERSONAL STORAGE</h3>
+
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="personal_first">First Name <span class="req">*</span></label>
+                        <input class="sum-input" id="personal_first" type="text" name="personal_first" value="<?php echo esc_attr($d['personal_first']); ?>" required>
+                    </div>
+                    <div class="sum-field">
+                        <label for="personal_surname">Surname <span class="req">*</span></label>
+                        <input class="sum-input" id="personal_surname" type="text" name="personal_surname" value="<?php echo esc_attr($d['personal_surname']); ?>" required>
+                    </div>
+                </div>
+
+                <div class="sum-grid">
+                    <div class="sum-field sum-col-12">
+                        <label for="home_address">Home Address <span class="req">*</span></label>
+                        <input class="sum-input" id="home_address" type="text" name="home_address" value="<?php echo esc_attr($d['home_address']); ?>" required>
+                    </div>
+                </div>
+
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="district">District <span class="req">*</span></label>
+                        <input class="sum-input" id="district" type="text" name="district" value="<?php echo esc_attr($d['district']); ?>" required>
+                    </div>
+                    <div class="sum-field">
+                        <label for="post_code">Post Code <span class="req">*</span></label>
+                        <input class="sum-input" id="post_code" type="text" name="post_code" value="<?php echo esc_attr($d['post_code']); ?>" required>
+                    </div>
+                    <div class="sum-field">
+                        <label for="home_tel">Home Tel No <span class="req">*</span></label>
+                        <input class="sum-input" id="home_tel" type="tel" name="home_tel" value="<?php echo esc_attr($d['home_tel']); ?>" required>
+                    </div>
+                </div>
+
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="mobile">Mobile <span class="req">*</span></label>
+                        <input class="sum-input" id="mobile" type="tel" name="mobile" value="<?php echo esc_attr($d['mobile']); ?>" required>
+                    </div>
+                    <div class="sum-field">
+                        <label for="email">Email <span class="req">*</span></label>
+                        <input class="sum-input" id="email" type="email" name="email" value="<?php echo esc_attr($d['email']); ?>" required>
+                    </div>
+                </div>
+
+                <!-- Uploads (required) -->
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="id_document">ID / Passport (PDF/JPG/PNG) <span class="req">*</span></label>
+                        <input class="sum-input sum-file" id="id_document" type="file" name="id_document" accept="application/pdf,image/*" required>
+                        <span class="sum-file-hint" aria-hidden="true">Choose file…</span>
+                    </div>
+                    <div class="sum-field">
+                        <label for="proof_address">Utility Bill (Proof of Address) <span class="req">*</span></label>
+                        <input class="sum-input sum-file" id="proof_address" type="file" name="proof_address" accept="application/pdf,image/*" required>
+                        <span class="sum-file-hint" aria-hidden="true">Choose file…</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BUSINESS STORAGE (toggle) -->
+            <section class="sum-section">
+                <div class="sum-toggle">
+                    <input type="checkbox" class="sum-switch" id="has_company" name="has_company" value="1" aria-controls="business_block" aria-expanded="false">
+                    <label for="has_company">I have a company</label>
+                </div>
+
+                <div id="business_block" class="sum-hidden" role="region" aria-labelledby="has_company">
+                    <h3 class="sum-h">BUSINESS STORAGE</h3>
+                    <div class="sum-grid">
+                        <div class="sum-field">
+                            <label for="company_name">Company Name</label>
+                            <input class="sum-input" id="company_name" type="text" name="company_name" value="<?php echo esc_attr($d['company_name']); ?>">
+                        </div>
+                        <div class="sum-field">
+                            <label for="company_reg">Co Reg No</label>
+                            <input class="sum-input" id="company_reg" type="text" name="company_reg" value="<?php echo esc_attr($d['company_reg']); ?>">
+                        </div>
+                        <div class="sum-field sum-col-12">
+                            <label for="company_address">Company Address</label>
+                            <input class="sum-input" id="company_address" type="text" name="company_address" value="<?php echo esc_attr($d['company_address']); ?>">
+                        </div>
+                    </div>
+                    <div class="sum-grid">
+                        <div class="sum-field">
+                            <label for="company_district">District</label>
+                            <input class="sum-input" id="company_district" type="text" name="company_district" value="<?php echo esc_attr($d['company_district']); ?>">
+                        </div>
+                        <div class="sum-field">
+                            <label for="company_post_code">Post Code</label>
+                            <input class="sum-input" id="company_post_code" type="text" name="company_post_code" value="<?php echo esc_attr($d['company_post_code']); ?>">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SELF STORAGE UNIT -->
+            <section class="sum-section">
+                <h3 class="sum-h">SELF STORAGE UNIT</h3>
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="unit_no">Unit No</label>
+                        <input class="sum-input" id="unit_no" type="text" name="unit_no" value="<?php echo esc_attr($d['unit_no']); ?>" readonly>
+                    </div>
+                    <div class="sum-field">
+                        <label for="unit_type">Unit Type</label>
+                        <input class="sum-input" id="unit_type" type="text" name="unit_type" value="<?php echo esc_attr($d['unit_type']); ?>" readonly>
+                    </div>
+                    <div class="sum-field">
+                        <label for="unit_size">Unit Size</label>
+                        <input class="sum-input" id="unit_size" type="text" name="unit_size" value="<?php echo esc_attr($d['unit_size']); ?>" readonly>
+                    </div>
+                </div>
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="storage_term">Storage Term (month/s)</label>
+                        <input class="sum-input" id="storage_term" type="number" min="1" step="1" name="storage_term" value="<?php echo esc_attr($d['storage_term']); ?>">
+                    </div>
+                    <div class="sum-field">
+                        <label for="period_from">Storage Period From</label>
+                        <input class="sum-input" id="period_from" type="date" name="period_from" value="<?php echo esc_attr($d['period_from']); ?>">
+                    </div>
+                    <div class="sum-field">
+                        <label for="period_to">to</label>
+                        <input class="sum-input" id="period_to" type="date" name="period_to" value="<?php echo esc_attr($d['period_to']); ?>">
+                    </div>
+                </div>
+                <p class="sum-help">Note: Unit sizes are approximate; ensure size is correct before signing.</p>
+            </section>
+
+            <!-- ALTERNATIVE CONTACT (toggle) -->
+            <section class="sum-section">
+                <div class="sum-toggle">
+                    <input type="checkbox" class="sum-switch" id="has_alt_contact" name="has_alt_contact" value="1" aria-controls="alt_block" aria-expanded="false">
+                    <label for="has_alt_contact">Add alternative contact person</label>
+                </div>
+
+                <div id="alt_block" class="sum-hidden" role="region" aria-labelledby="has_alt_contact">
+                    <h3 class="sum-h">ALTERNATIVE CONTACT</h3>
+                    <div class="sum-grid">
+                        <div class="sum-field">
+                            <label for="alt_first">First Name</label>
+                            <input class="sum-input" id="alt_first" type="text" name="alt_first" value="<?php echo esc_attr($d['alt_first']); ?>">
+                        </div>
+                        <div class="sum-field">
+                            <label for="alt_surname">Surname</label>
+                            <input class="sum-input" id="alt_surname" type="text" name="alt_surname" value="<?php echo esc_attr($d['alt_surname']); ?>">
+                        </div>
+                    </div>
+                    <div class="sum-grid">
+                        <div class="sum-field">
+                            <label for="alt_mobile">Alternative Mobile</label>
+                            <input class="sum-input" id="alt_mobile" type="tel" name="alt_mobile" value="<?php echo esc_attr($d['alt_mobile']); ?>">
+                        </div>
+                        <div class="sum-field">
+                            <label for="alt_email">Alternative Email</label>
+                            <input class="sum-input" id="alt_email" type="email" name="alt_email" value="<?php echo esc_attr($d['alt_email']); ?>">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PRICE & PAYMENT (informative only) -->
+            <section class="sum-section">
+                <h3 class="sum-h">PRICE &amp; PAYMENT</h3>
+                <div class="sum-price">
+                    <div class="row"><strong>Monthly price (excl. VAT):</strong> <span>€<?php echo number_format($d['monthly_ex_vat'], 2); ?></span></div>
+                    <div class="row"><strong>VAT (19%):</strong> <span>€<?php echo number_format($d['monthly_ex_vat'] * self::VAT_RATE, 2); ?></span></div>
+                    <div class="row"><strong>Monthly price (incl. VAT):</strong> <span>€<?php echo number_format($d['monthly_inc_vat'], 2); ?></span></div>
+                </div>
+                <p class="sum-help">Storage fees are paid monthly in advance. Payment methods: Credit Card (in person), PayPal, Revolut/Quick Pay (+357 97 640422), Cash, Cheque. Bank Transfer & Monthly Direct Debit also accepted.</p>
+            </section>
+
+            <!-- SELECTED POINTS & ACCEPTANCE -->
+            <section class="sum-section">
+                <h3 class="sum-h">SELECTED POINTS</h3>
+                <p class="sum-help">
+                    By signing I confirm I have read and agree to be bound by GEOGEO Limited t/a Self Storage Cyprus Terms
+                    (<a class="sum-link" href="https://selfstorage.cy/self-storage-terms-conditions/" target="_blank" rel="noopener">see website terms</a>).
+                    Key points include: storage fees paid in advance; no hazardous/illegal items; access during posted hours; you are responsible for securing the unit; goods stored at your risk; minimum 15 days' notice to terminate.
+                </p>
+                <div class="sum-grid">
+                    <div class="sum-field">
+                        <label for="sign_print_name">Print Name <span class="req">*</span></label>
+                        <input class="sum-input" id="sign_print_name" type="text" name="sign_print_name" value="<?php echo esc_attr($d['sign_print_name']); ?>" required>
+                    </div>
+                    <div class="sum-field">
+                        <label for="sign_date">Date <span class="req">*</span></label>
+                        <input class="sum-input" id="sign_date" type="date" name="sign_date" value="<?php echo esc_attr($d['sign_date']); ?>" required>
+                    </div>
+                </div>
+                <label class="sum-check">
+                    <input type="checkbox" name="accept_terms" value="1" <?php checked($d['accept_terms'],'1'); ?> required>
+                    I have read and agree to be bound by the Self Storage Licence Agreement terms and conditions.
+                </label>
+            </section>
+
+            <div class="sum-actions">
+                <button class="sum-btn" type="submit">Submit Application</button>
+            </div>
+
+            <!-- Hidden, just for saving informative values if needed -->
+            <input type="hidden" name="monthly_ex_vat" value="<?php echo esc_attr($d['monthly_ex_vat']); ?>">
+            <input type="hidden" name="monthly_inc_vat" value="<?php echo esc_attr($d['monthly_inc_vat']); ?>">
+        </form>
+        <?php
+        return ob_get_clean();
+    }
+
+    /** ---------- Handle submit ---------- */
+    public static function handle_submit() {
+        set_time_limit(300);
+        @ini_set('max_execution_time', 300);
+        @ini_set('upload_max_filesize', '50M');
+        @ini_set('post_max_size', '50M');
+
+        if ( ! isset($_POST['sum_nonce']) || ! wp_verify_nonce($_POST['sum_nonce'], self::NONCE) ) {
+            wp_die('Security check failed', 'Security Error', ['response' => 403]);
+        }
+
+        // Server-side required validations
+        $req = ['personal_first','personal_surname','home_address','district','post_code','home_tel','mobile','email'];
+        foreach ($req as $key) {
+            if (empty($_POST[$key])) {
+                wp_die('Missing required field: '.esc_html($key), 'Validation Error', ['response' => 400]);
+            }
+        }
+        if (empty($_FILES['id_document']['name']) || empty($_FILES['proof_address']['name'])) {
+            wp_die('ID/Passport and Utility Bill uploads are required.', 'Upload Error', ['response' => 400]);
+        }
+
+        $f = function($key){ return isset($_POST[$key]) ? sanitize_text_field(wp_unslash($_POST[$key])) : ''; };
+
+        $title = trim($f('personal_first') . ' ' . $f('personal_surname'));
+        if ($title === '') $title = 'Storage Application ' . current_time('Y-m-d H:i');
+
+        $post_id = wp_insert_post([
+            'post_type' => self::CPT,
+            'post_status' => 'publish',
+            'post_title' => $title,
+        ]);
+        if (is_wp_error($post_id)) wp_die('Could not save application.');
+
+        // Save scalar fields
+        $fields = [
+            // Personal
+            'personal_first','personal_surname','home_address','district','post_code','home_tel','mobile','email',
+            // Toggles
+            'has_company','has_alt_contact',
+            // Business
+            'company_name','company_reg','company_address','company_district','company_post_code',
+            // Unit
+            'unit_no','unit_type','unit_size','storage_term','period_from','period_to',
+            // Reason & alt contact
+            'reason','alt_first','alt_surname','alt_mobile','alt_email',
+            // Context
+            'ctx_unit_id',
+            // Acceptance
+            'accept_terms','sign_print_name','sign_date',
+            // Price (informative)
+            'monthly_ex_vat','monthly_inc_vat',
+        ];
+        foreach ($fields as $key) {
+            $val = $f($key);
+            if (in_array($key, ['has_company','has_alt_contact','accept_terms'], true)) {
+                $val = $val ? '1' : '0';
+            }
+            update_post_meta($post_id, $key, $val);
+        }
+
+        // Handle uploads safely
+        $id_doc_id  = self::save_upload_to_media('id_document', $post_id);
+        $proof_id   = self::save_upload_to_media('proof_address', $post_id);
+        if (!$id_doc_id || !$proof_id) {
+            wp_delete_post($post_id, true);
+            error_log('SUM Intake Form: Upload failed for post_id ' . $post_id);
+            error_log('ID Document ID: ' . $id_doc_id);
+            error_log('Proof Address ID: ' . $proof_id);
+            if (isset($_FILES['id_document']['error'])) {
+                error_log('ID Document Error: ' . $_FILES['id_document']['error']);
+            }
+            if (isset($_FILES['proof_address']['error'])) {
+                error_log('Proof Address Error: ' . $_FILES['proof_address']['error']);
+            }
+            wp_die('Upload failed. Please ensure files are under 10MB and try again.', 'Upload Error', ['response' => 400]);
+        }
+        update_post_meta($post_id, 'id_document_attachment_id', (int)$id_doc_id);
+        update_post_meta($post_id, 'proof_address_attachment_id', (int)$proof_id);
+
+        error_log('SUM Intake Form: Successfully saved application ' . $post_id);
+        wp_safe_redirect( add_query_arg(['sum_submitted'=>'1'], wp_get_referer() ?: home_url()) );
+        exit;
+    }
+
+    protected static function save_upload_to_media($field, $post_id) {
+        if (empty($_FILES[$field]['name'])) {
+            error_log("SUM Intake: No file uploaded for field: $field");
+            return 0;
+        }
+
+        if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+            error_log("SUM Intake: Upload error for $field: " . $_FILES[$field]['error']);
+            return 0;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+
+        $overrides = [
+            'test_form' => false,
+            'mimes' => [
+                'pdf' => 'application/pdf',
+                'jpg' => 'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','gif'=>'image/gif','webp'=>'image/webp'
+            ],
+        ];
+        $file = wp_handle_upload($_FILES[$field], $overrides);
+        if (isset($file['error'])) {
+            error_log("SUM Intake: wp_handle_upload error for $field: " . $file['error']);
+            return 0;
+        }
+
+        $attachment = [
+            'post_mime_type' => $file['type'],
+            'post_title'     => sanitize_file_name(basename($file['file'])),
+            'post_content'   => '',
+            'post_status'    => 'inherit'
+        ];
+        $attach_id = wp_insert_attachment($attachment, $file['file'], $post_id);
+        if (is_wp_error($attach_id) || !$attach_id) return 0;
+
+        $attach_data = wp_generate_attachment_metadata($attach_id, $file['file']);
+        wp_update_attachment_metadata($attach_id, $attach_data);
+
+        return $attach_id;
+    }
+
+    /** ---------- Admin: Send Intake Link ---------- */
+    public static function admin_menu() {
+        add_submenu_page(
+            'edit.php?post_type=' . self::CPT,
+            'Send Intake Link',
+            'Send Intake Link',
+            'manage_options',
+            'sum-send-intake',
+            [__CLASS__, 'render_send_link_page']
+        );
+    }
+
+    public static function render_send_link_page() {
+        if ( ! current_user_can('manage_options') ) return;
+        $sent = isset($_GET['sent']) ? intval($_GET['sent']) : 0;
+        $pref_unit = isset($_GET['unit_id']) ? intval($_GET['unit_id']) : 0;
+        ?>
+        <div class="wrap">
+            <h1>Send Intake Link</h1>
+            <?php if ($sent) echo '<div class="notice notice-success"><p>Link sent.</p></div>'; ?>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('sum_send_intake'); ?>
+                <input type="hidden" name="action" value="sum_send_intake_link">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="unit_id">Unit ID</label></th>
+                        <td><input name="unit_id" id="unit_id" type="number" class="regular-text" required value="<?php echo esc_attr($pref_unit); ?>"></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="page_id">Page with shortcode</label></th>
+                        <td>
+                            <input name="page_id" id="page_id" type="number" class="regular-text" required>
+                            <p class="description">Enter the Page/Post ID where you placed <code>[sum_customer_intake_form]</code>.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="email">Customer Email (optional)</label></th>
+                        <td><input name="email" id="email" type="email" class="regular-text">
+                            <p class="description">If empty, we'll use the email from the unit's assigned customer.</p></td>
+                    </tr>
+                </table>
+                <?php submit_button('Send Link'); ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    public static function handle_send_link() {
+        if ( ! current_user_can('manage_options') ) wp_die('Nope.');
+        check_admin_referer('sum_send_intake');
+        $unit_id = isset($_POST['unit_id']) ? intval($_POST['unit_id']) : 0;
+        $page_id = isset($_POST['page_id']) ? intval($_POST['page_id']) : 0;
+        $email   = sanitize_email($_POST['email'] ?? '');
+
+        if (!$unit_id || !$page_id) wp_die('Missing unit_id or page_id');
+
+        $unit = self::fetch_unit($unit_id);
+        if (empty($email) && $unit && !empty($unit['customer_id'])) {
+            $c = self::fetch_customer((int)$unit['customer_id']);
+            if ($c && !empty($c['email'])) $email = $c['email'];
+        }
+        if (empty($email)) wp_die('No email found.');
+
+        $url = self::share_url($page_id, $unit_id, $email);
+
+        $subject = sprintf('Self Storage Intake Form – Unit %s', $unit['unit_name'] ?? $unit_id);
+        $body = "Hello,\n\nPlease complete your Self Storage Licence Agreement details here:\n\n{$url}\n\nThis link expires in ".self::EXPIRES_DAYS." days.\n\nThank you.";
+        wp_mail($email, $subject, $body);
+
+        wp_safe_redirect( add_query_arg(['page'=>'sum-send-intake','sent'=>1], admin_url('edit.php?post_type=' . self::CPT)) );
+        exit;
     }
 }
+SUM_Customer_Intake_Form::boot();
