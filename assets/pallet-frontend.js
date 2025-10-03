@@ -136,6 +136,11 @@ jQuery(document).ready(function($) {
             const palletId = $(this).data('pallet-id');
             regeneratePalletPdf(palletId);
         });
+        
+        $('.send-intake-link-btn').on('click', function() {
+            const palletId = $(this).data('pallet-id');
+            sendIntakeLink(palletId);
+        });
     }
     
 /**
@@ -252,6 +257,10 @@ function renderPalletCard(pallet) {
                  <button type="button" class="sum-pallet-btn sum-pallet-btn-icon frontend-send-pallet-invoice-btn" data-pallet-id="${pallet.id}" title="Send Invoice">✉️</button>
                  <button type="button" class="sum-pallet-btn sum-pallet-btn-secondary frontend-edit-pallet" data-pallet-id="${pallet.id}">Edit</button>
                  <button type="button" class="sum-pallet-btn sum-pallet-btn-danger frontend-delete-pallet" data-pallet-id="${pallet.id}">Delete</button>
+                  ${pallet.customer_id ?
+                                `<button type="button" class="send-intake-link-btn sum-btn-modern sum-btn-accent" data-pallet-id="${pallet.id}" title="Send Intake Form Link">
+                                    <span class="dashicons dashicons-clipboard"></span> Send Intake Link
+                                </button>` : ''}
             </div>
         </div>
     `;
@@ -632,6 +641,32 @@ function saveNewCustomer() {
         }
     });
 }
+
+function sendIntakeLink(palletId) {
+        if (!confirm('Are you sure you want to send intak link to this customer?')) {
+            return;
+        }
+        
+        $.ajax({
+            url: sum_pallet_frontend_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_send_intake_link',
+                nonce: sum_pallet_frontend_ajax.nonce,
+                pallet_id: palletId
+            },
+            success: function(response) {
+                if (response.success) {
+                    showSuccess(response.data);
+                } else {
+                    showError(response.data);
+                }
+            },
+            error: function() {
+                showError('Failed to send invoice');
+            }
+        });
+    }
 });
 
 // Add toast styles dynamically
