@@ -643,27 +643,33 @@ function saveNewCustomer() {
 }
 
 function sendIntakeLink(palletId) {
-        if (!confirm('Are you sure you want to send intak link to this customer?')) {
+        if (!confirm('Send intake form link to this customer?')) {
             return;
         }
-        
+
         $.ajax({
             url: sum_pallet_frontend_ajax.ajax_url,
             type: 'POST',
             data: {
-                action: 'sum_send_intake_link',
+                action: 'sum_send_intake_link_frontend',
                 nonce: sum_pallet_frontend_ajax.nonce,
-                pallet_id: palletId
+                unit_id: palletId,
+                type: 'pallet'
             },
             success: function(response) {
                 if (response.success) {
-                    showSuccess(response.data);
+                    showSuccess(response.data.message || 'Intake link sent successfully');
                 } else {
-                    showError(response.data);
+                    showError(response.data.message || 'Failed to send intake link');
                 }
             },
-            error: function() {
-                showError('Failed to send invoice');
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error);
+                if (xhr.status === 403) {
+                    showError('Access denied. Please refresh the page and try again.');
+                } else {
+                    showError('Failed to send intake link');
+                }
             }
         });
     }
