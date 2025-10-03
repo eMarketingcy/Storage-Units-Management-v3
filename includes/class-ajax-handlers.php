@@ -905,7 +905,9 @@ public function delete_customer_frontend() {
     }
 
     public function send_intake_link_frontend() {
-        check_ajax_referer('sum_pallet_frontend_nonce', 'nonce');
+        if (!check_ajax_referer('sum_frontend_nonce', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Invalid nonce']);
+        }
 
         if (!$this->check_frontend_access()) {
             wp_send_json_error(['message' => 'Access denied']);
