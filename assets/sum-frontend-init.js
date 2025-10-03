@@ -288,6 +288,10 @@ function renderUnitCard(unit) {
 
         <button type="button" class="sum-frontend-btn sum-frontend-btn-secondary frontend-edit-unit" data-unit-id="${esc(unit.id)}">Edit</button>
         <button type="button" class="sum-frontend-btn sum-frontend-btn-danger frontend-delete-unit" data-unit-id="${esc(unit.id)}">Delete</button>
+        ${unit.customer_id ?
+                                `<button type="button" class="send-intake-link-btn sum-frontend-btn" data-unit-id="${unit.id}" title="Send Intake Form Link">
+                                    <span class="dashicons dashicons-clipboard"></span> Send Intake Link
+                                </button>` : ''}
       </div>
     </div>`;
 }
@@ -312,6 +316,11 @@ function bindEvents() {
     $('.frontend-send-invoice-btn').off('click').on('click', function() {
         const unitId = $(this).data('unit-id');
         actions.sendInvoice(unitId);
+    });
+    
+    $('.send-intake-link-btn').off('click').on('click', function() {
+        const unitId = $(this).data('unit-id');
+        actions.sendIntakeLink(unitId);
     });
     
     $('.frontend-regenerate-pdf-btn').off('click').on('click', function() {

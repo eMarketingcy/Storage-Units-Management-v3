@@ -266,12 +266,22 @@ require_once SUM_PLUGIN_PATH . 'includes/class-customer-database.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-customer-pdf-generator.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-customer-email-handler.php';
 require_once SUM_PLUGIN_PATH . 'includes/class-sum-customer-intake-form.php';
+require_once SUM_PLUGIN_PATH . 'includes/class-sum-admin-frontend-report.php';
+require_once SUM_PLUGIN_PATH . 'includes/class-sum-license-agreements-frontend.php';
+require_once SUM_PLUGIN_PATH . 'includes/class-sum-license-agreement-pdf.php';
+
+
 
 // === PDF libs paths ===
 // Where Dompdf will live: wp-content/plugins/storage-unit-manager/lib/dompdf/
 if (!defined('SUM_VENDOR_PATH')) define('SUM_VENDOR_PATH', plugin_dir_path(__FILE__) . 'lib/');
 if (!defined('SUM_DOMPDF_DIR'))  define('SUM_DOMPDF_DIR',  SUM_VENDOR_PATH . 'dompdf/');
 if (!defined('SUM_DOMPDF_AUTO')) define('SUM_DOMPDF_AUTO', SUM_DOMPDF_DIR . 'autoload.inc.php');
+
+// === Reports SSC Agrements ===
+if ( class_exists( 'SUM_Admin_Frontend_Report' ) ) {
+    new SUM_Admin_Frontend_Report(); // registers [sum_admin_report]
+}
 
 if (!function_exists('sum_load_dompdf')) {
 function sum_load_dompdf() {
@@ -343,6 +353,7 @@ class StorageUnitManager {
     private $customer_pdf_generator;
     private $customer_email_handler;
     private $billing_automation; 
+    private $license_agreements_frontend;
     
     public function __construct() {
         add_action('init', array($this, 'init'));
@@ -356,6 +367,7 @@ public function init() {
     $this->database = new SUM_Database();
     $this->pallet_database = new SUM_Pallet_Database();
     $this->customer_database = new SUM_Customer_Database();
+    $this->license_agreements_frontend = new SUM_License_Agreements_Frontend();
 
     // 2. Initialize the handlers and pass the database objects they need.
     $this->ajax_handlers = new SUM_Ajax_Handlers($this->database, $this->customer_database);
@@ -418,8 +430,12 @@ public function init() {
         $this->create_storage_manager_role();
         $this->create_frontend_page();
         $this->create_pallet_frontend_page();
-        $this->create_pallet_frontend_page();
+        $this->create_admin_report_page();
         
+        SUM_License_Agreements_Frontend::install_table();
+        $this->create_license_agreements_frontend_page();
+        
+
         // Schedule daily email check
         if (!wp_next_scheduled('sum_daily_email_check')) {
             wp_schedule_event(time(), 'daily', 'sum_daily_email_check');
@@ -798,6 +814,31 @@ public function ajax_generate_customer_pdf() {
     }
     wp_die('Could not generate PDF. The customer may not have any active rentals.');
 }
+
+private function create_admin_report_page() {
+    if ( get_page_by_path('sum-admin-report') ) return;
+    wp_insert_post([
+        'post_title'   => 'SUM Admin Report',
+        'post_content' => '[sum_admin_report]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_name'    => 'sum-admin-report',
+    ]);
+}
+
+private function create_license_agreements_frontend_page() {
+    // slug: license-agreements (change if you like)
+    if ( get_page_by_path('license-agreements') ) return;
+    wp_insert_post([
+        'post_title'   => 'License Agreements',
+        'post_content' => '[sum_license_agreements]',
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+        'post_name'    => 'license-agreements',
+    ]);
+}
+
+
     
 }
 

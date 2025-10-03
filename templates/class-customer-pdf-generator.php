@@ -16,7 +16,7 @@ class SUM_Customer_PDF_Generator {
      */
     public function generate_invoice($customer_id) {
         $customer = $this->customer_db->get_customer($customer_id);
-        $rentals = $this->customer_db->get_customer_rentals($customer_id, true);
+        $rentals = $this->customer_db->get_customer_rentals($customer_id);
 
         if (!$customer) {
             return false; // No customer found

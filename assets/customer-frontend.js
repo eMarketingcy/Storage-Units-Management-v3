@@ -118,9 +118,11 @@ jQuery(document).ready(function($) {
 
         return `
             <div class="sum-customer-card" data-customer-id="${customer.id}">
-                ${hasUnpaid ? '<div class="sum-unpaid-indicator">⚠️ Unpaid</div>' : ''}
+               
                 <div class="sum-customer-card-header">
                     <h3>${customer.full_name}</h3>
+                    <button type="button" class="sum-customer-action-btn sum-customer-action-btn-danger frontend-delete-customer">🗑️</button>
+                    ${hasUnpaid ? '<div class="sum-unpaid-indicator">⚠️ Unpaid</div>' : ''}
                 </div>
                 <div class="sum-customer-card-body">
                     <div class="sum-customer-detail-row">
@@ -140,7 +142,6 @@ jQuery(document).ready(function($) {
                     <button type="button" class="sum-customer-action-btn frontend-generate-invoice-pdf" title="Download PDF">📄</button>
                     <button type="button" class="sum-customer-action-btn frontend-send-customer-invoice-btn" title="Send Email">✉️</button>
                     <button type="button" class="sum-customer-action-btn frontend-edit-customer">Edit</button>
-                    <button type="button" class="sum-customer-action-btn sum-customer-action-btn-danger frontend-delete-customer">Delete</button>
                 </div>
             </div>
         `;

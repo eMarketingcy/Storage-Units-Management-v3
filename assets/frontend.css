@@ -1326,7 +1326,7 @@
 .sum-frontend-period-item { text-align: center; flex-basis: 33%; }
 .sum-frontend-period-item .sum-frontend-detail-label { font-size: 0.75rem; text-transform: uppercase; }
 .sum-frontend-period-total .sum-frontend-detail-value { font-weight: 700; color: var(--frontend-primary); }
-.sum-frontend-card-actions { display: flex; gap: 0.5rem; padding: var(--frontend-spacing); border-top: 1px solid var(--frontend-border); background-color: var(--frontend-background); border-radius: 0 0 var(--frontend-radius-lg) var(--frontend-radius-lg); }
+.sum-frontend-card-actions { display: flex; gap: 0.5rem; padding: var(--frontend-spacing); border-top: 1px solid var(--frontend-border); background-color: var(--frontend-background); border-radius: 0 0 var(--frontend-radius-lg) var(--frontend-radius-lg); width: 100%; }
 .sum-frontend-card-actions .sum-frontend-btn { padding: 0.5rem 1rem; font-size: 0.875rem; flex-grow: 1; }
 .sum-frontend-card-actions .sum-frontend-btn-icon { flex-grow: 0; width: 50px; }
 

@@ -255,6 +255,38 @@ jQuery(document).ready(function($) {
         });
     }
     
+    function sendIntakeLink(unitId) {
+        if (!confirm('Send intake form link to this customer?')) {
+            return;
+        }
+
+        $.ajax({
+            url: sum_frontend_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'sum_send_intake_link_frontend',
+                nonce: sum_frontend_ajax.nonce,
+                unit_id: unitId
+            },
+            success: function(response) {
+                if (response.success) {
+                    showSuccess(response.data.message || 'Intake link sent successfully');
+                } else {
+                    showError(response.data.message || 'Failed to send intake link');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error);
+                if (xhr.status === 403) {
+                    showError('Access denied. Please refresh the page and try again.');
+                } else {
+                    showError('Failed to send intake link');
+                }
+            }
+        });
+    }
+
+    
     function regeneratePdf(unitId) {
         if (!confirm('Generate a new PDF invoice for this unit?')) {
             return;
@@ -364,6 +396,7 @@ jQuery(document).ready(function($) {
     window.toggleOccupancy = toggleOccupancy;
     window.sendInvoice = sendInvoice;
     window.regeneratePdf = regeneratePdf;
+    window.sendIntakeLink = sendIntakeLink;
     
     // Expose state and functions for other files
     window.sumState = {
@@ -380,7 +413,8 @@ jQuery(document).ready(function($) {
         deleteUnit: deleteUnit,
         toggleOccupancy: toggleOccupancy,
         sendInvoice: sendInvoice,
-        regeneratePdf: regeneratePdf
+        regeneratePdf: regeneratePdf,
+        sendIntakeLink: sendIntakeLink
     };
     
     // Include all functions from other files here for single-file deployment, 
